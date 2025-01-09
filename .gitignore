@@ -1,2 +1,3 @@
 venv
 streamlit/secrets.toml
+clound-sql/erpj-dev.json
