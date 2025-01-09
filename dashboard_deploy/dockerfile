@@ -1,0 +1,27 @@
+# Use a imagem base do Python
+FROM python:3.12-slim
+
+# Instale dependências do sistema operacional
+RUN apt-get update && apt-get install -y \
+    wget \
+    gcc \
+    libmariadb-dev \
+    libssl-dev \
+    pkg-config \
+    && apt-get clean
+
+# Configure o diretório de trabalho e copie o projeto
+WORKDIR /app
+COPY . .
+
+# # Copie as credenciais do Google Cloud
+# COPY clound-sql/erpj-dev.json /app/credenciais.json
+
+# Instale as dependências do projeto
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Exponha a porta do Streamlit
+EXPOSE 9000
+
+# Comando de inicialização: execute apenas o Streamlit
+CMD ["streamlit", "run", "app.py", "--server.port=9000", "--server.address=0.0.0.0"]
