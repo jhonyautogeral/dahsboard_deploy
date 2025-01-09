@@ -1,0 +1,1 @@
+docker build -t deploy_dashboards_streamlit:v10 .
