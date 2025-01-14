@@ -1,0 +1,1 @@
+scp -r C:\Users\jhonatan.novais\Desktop\fazer_deploy\dashboard_deploy\app.py jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/dashboard_deploy\app.py

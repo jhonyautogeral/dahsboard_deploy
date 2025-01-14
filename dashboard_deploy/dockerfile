@@ -8,14 +8,27 @@ RUN apt-get update && apt-get install -y \
     libmariadb-dev \
     libssl-dev \
     pkg-config \
+    libnss3-tools \
+    unzip \
+    curl \
+    jq \
     && apt-get clean
+
+# Instale o ngrok
+RUN wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip \
+    && unzip ngrok-v3-stable-linux-amd64.zip \
+    && mv ngrok /usr/local/bin/ \
+    && rm ngrok-v3-stable-linux-amd64.zip
+
+# Adicionar variáveis de ambiente
+ENV NGROK_AUTHTOKEN=2rRkROehfzba10HgFFisFasgM90_52sopvxkNmMf4HP3p5LFv
+
+# Configure o authtoken do ngrok dinamicamente
+RUN ngrok config add-authtoken $NGROK_AUTHTOKEN
 
 # Configure o diretório de trabalho e copie o projeto
 WORKDIR /app
 COPY . .
-
-# # Copie as credenciais do Google Cloud
-# COPY clound-sql/erpj-dev.json /app/credenciais.json
 
 # Instale as dependências do projeto
 RUN pip install --no-cache-dir -r requirements.txt
@@ -23,5 +36,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Exponha a porta do Streamlit
 EXPOSE 9000
 
-# Comando de inicialização: execute apenas o Streamlit
-CMD ["streamlit", "run", "app.py", "--server.port=9000", "--server.address=0.0.0.0"]
+# Configure o script de inicialização
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Comando de inicialização: inicie o Streamlit e o ngrok
+CMD ["/start.sh"]

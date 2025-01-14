@@ -4,13 +4,14 @@ from time import sleep
 # from navigation import make_sidebar
 # make_sidebar()
 
+import os
 
 # Microsoft OAuth Configurations
 CLIENT_ID = st.secrets["oauth"]["client_id"]
 CLIENT_SECRET = st.secrets["oauth"]["client_secret"]
 TENANT_ID = st.secrets["oauth"]["tenant_id"]
 AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-REDIRECT_URI = "http://localhost:9000/app"
+REDIRECT_URI = os.getenv("REDIRECT_URI", "https://default-url.ngrok-free.app/")
 SCOPES = ["User.Read"]
 
 st.title("Painéis de gestão da Auto Geral")
