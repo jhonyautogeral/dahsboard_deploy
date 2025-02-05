@@ -34,7 +34,8 @@ def login_page():
                 if user_data:
                     st.session_state["user"] = {
                         "name": user_data.get("id_token_claims", {}).get("name", "Usuário"),
-                        "email": user_data.get("id_token_claims", {}).get("preferred_username", "Email não encontrado")
+                        "email": user_data.get("id_token_claims", {}).get("preferred_username", "Email não encontrado"),
+                        "access_token": user_data.get("access_token")
                     }
                     st.session_state["logged_in"] = True
                     st.success(f"Bem-vindo, {st.session_state['user']['name']}!")

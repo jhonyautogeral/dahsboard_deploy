@@ -1,4 +1,9 @@
 import streamlit as st
+# Proteção de acesso
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()  # Interrompe a execução para evitar continuar carregando esta página
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
