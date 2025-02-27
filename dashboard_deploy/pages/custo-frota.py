@@ -1,18 +1,18 @@
+import pandas as pd
 import streamlit as st
+from sqlalchemy import create_engine, text
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
 
-import pandas as pd
 import matplotlib.pyplot as plt
-from sqlalchemy import create_engine, text
 import re
 
 
 # Configurar a página do Streamlit
-st.set_page_config(page_title="Custo da Frota", layout="wide")
+st.set_page_config(page_title="Custo da Frota")
 
 # Título do dashboard
 st.title("Custo Frota")
@@ -25,10 +25,13 @@ data_fim = st.date_input("Data Fim", value=pd.to_datetime('2024-12-31'))
 # Criar a conexão com o banco de dados usando SQLAlchemy
 # Função para criar conexão com o banco de dados
 def criar_conexao():
+    """Cria e retorna a conexão com o banco de dados."""
     config = st.secrets["connections"]["mysql"]
-    url = f"{config['dialect']}://{config['username']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
+    url = f"{config['dialect']}://{config['username']}:{config['password']}@" \
+          f"{config['host']}:{config['port']}/{config['database']}"
     return create_engine(url)
 
+engine = criar_conexao()
 # Consultar dados do banco para o período selecionado
 expedicao_df = pd.read_sql(
     f"""SELECT cv.PLACA, 
@@ -107,6 +110,7 @@ st.dataframe(agrupado_df)
 # agrupado_df.fillna(0,inplace=True)
 # st.bar_chart(agrupado_df)
 
+engine = criar_conexao()
 
 # Fazendo conexao para puxar dados de pedagio
 veloe_df = pd.read_sql(f"""

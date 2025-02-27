@@ -4,6 +4,7 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
+
 import pandas as pd
 import calendar
 from sqlalchemy import create_engine
@@ -15,7 +16,20 @@ import plotly.express as px
 # =======================
 DIAS_SEMANA = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
 MODOS = ['PRONTA_ENTREGA', 'CASADA', 'FUTURA']
-CORES = {'CASADA': '#636EFA', 'FUTURA': '#EF553B', 'PRONTA_ENTREGA': '#00CC96'}
+
+# Cores para o gráfico de área (valores absolutos)
+CORES = {
+    'CASADA': '#636EFA',
+    'FUTURA': '#EF553B',
+    'PRONTA_ENTREGA': '#00CC96'
+}
+
+# Cores para o gráfico de barras empilhadas (colunas PERC_*)
+CORES_PERC = {
+    'PERC_CASADA': '#636EFA',
+    'PERC_FUTURA': '#EF553B',
+    'PERC_PRONTA_ENTREGA': '#00CC96'
+}
 
 # =======================
 # CONEXÃO E EXECUÇÃO DE QUERIES
@@ -126,14 +140,6 @@ def add_total_and_percentages(df, modos):
 def create_area_chart(data, x_col, modos, titulo, x_label, cores):
     """
     Cria e retorna um gráfico de área utilizando Plotly Express, exibindo os valores de cada ponto.
-    
-    Parâmetros:
-      - data: DataFrame com os dados agregados para o gráfico.
-      - x_col: Nome da coluna a ser usada no eixo X.
-      - modos: Lista de modos a serem plotados.
-      - titulo: Título do gráfico.
-      - x_label: Rótulo do eixo X.
-      - cores: Mapeamento de cores para os modos.
     """
     fig = px.area(
         data,
@@ -143,25 +149,87 @@ def create_area_chart(data, x_col, modos, titulo, x_label, cores):
         title=titulo,
         color_discrete_map=cores
     )
-    # Atualiza os traces para exibir linhas, marcadores e textos (posição "top center")
-    fig.update_traces(
-        mode='lines+markers+text',
-        texttemplate='%{y}',
-        textposition='top center'
-    )
+    fig.update_traces(mode='lines+markers+text', texttemplate='%{y}', textposition='top center')
     fig.update_layout(yaxis_title='Quantidade de Vendas', xaxis_title=x_label)
+    return fig
+
+def create_grouped_bar_chart(data, x_col, modos, titulo, x_label, cores):
+    """
+    Cria um gráfico de barras agrupadas (lado a lado).
+    data: DataFrame com a coluna x_col e colunas para cada modo (ex.: 'PRONTA_ENTREGA', 'CASADA', 'FUTURA').
+    x_col: Nome da coluna para o eixo X (ex.: 'mes_nome', 'dia', 'semana_label').
+    modos: Lista com os modos de venda (ex.: ['PRONTA_ENTREGA', 'CASADA', 'FUTURA']).
+    titulo: Título do gráfico.
+    x_label: Rótulo do eixo X.
+    cores: Dicionário {modo: cor}, ex.: {'CASADA': '#636EFA', ...}.
+    """
+    # 'derrete' o DataFrame de largo para longo, para Plotly
+    df_melted = data.melt(
+        id_vars=[x_col], 
+        value_vars=modos, 
+        var_name='MODO', 
+        value_name='VALOR'
+    )
+
+    import plotly.express as px
+    fig = px.bar(
+        df_melted,
+        x=x_col,
+        y='VALOR',
+        color='MODO',
+        title=titulo,
+        barmode='group',
+        labels={x_col: x_label, 'VALOR': 'Quantidade de Vendas'},
+        color_discrete_map=cores
+    )
+    # Mostra o valor acima das barras
+    fig.update_traces(texttemplate='%{value}', textposition='outside')
+    fig.update_layout(
+        yaxis_title='Quantidade de Vendas', 
+        xaxis_title=x_label
+    )
+    return fig
+
+
+def create_stacked_bar_chart_percent(data, x_col, modos_perc, titulo, x_label, cores):
+    """
+    Cria um gráfico de barras empilhadas usando as colunas PERC_* (que já estão em %).
+    data: DataFrame que contém x_col e as colunas modos_perc (ex.: ['PERC_PRONTA_ENTREGA', ...]).
+    x_col: Coluna para o eixo X (ex.: 'mes_nome', 'dia', 'semana_label', etc.).
+    modos_perc: Lista de colunas de percentual (ex.: ['PERC_PRONTA_ENTREGA', 'PERC_CASADA', 'PERC_FUTURA']).
+    """
+    # Converte o DF de largo para longo
+    df_melted = data.melt(
+        id_vars=[x_col], 
+        value_vars=modos_perc,
+        var_name='MODO',
+        value_name='VALOR'
+    )
+    # df_melted agora terá colunas: [x_col, 'MODO', 'VALOR']
+
+    fig = px.bar(
+        df_melted,
+        x=x_col,
+        y='VALOR',
+        color='MODO',
+        title=titulo,
+        color_discrete_map=cores,
+        labels={x_col: x_label, 'VALOR': 'Percentual'}
+    )
+    # Já estamos em porcentagem, então apenas empilhamos
+    fig.update_layout(barmode='stack', yaxis=dict(range=[0,100]))
+    
+    # Exibe o texto do valor (ex.: 30.5%) dentro das barras
+    fig.update_traces(
+        texttemplate='%{y:.2f}%',
+        textposition='inside'
+    )
+    
     return fig
 
 def process_visualizacao(engine, data_inicio, data_fim, loja, titulo, periodo):
     """
     Executa a query, processa os dados e chama a função de geração do gráfico e tabelas.
-    
-    Parâmetros:
-      - engine: Conexão com o banco.
-      - data_inicio, data_fim: Intervalo de datas para a query.
-      - loja: Código da loja selecionada.
-      - titulo: Título da visualização.
-      - periodo: Tipo de agregação ("Ano", "Mês", "Semana" ou "Seleciona data").
     """
     query = gerar_query_dados(data_inicio, data_fim, loja)
     df = executar_query(engine, query)
@@ -172,54 +240,101 @@ def process_visualizacao(engine, data_inicio, data_fim, loja, titulo, periodo):
 
 def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
     """
-    Gera o gráfico de área e exibe as tabelas com a agregação das vendas e os totais do período.
-    
-    Parâmetros:
-      - df: DataFrame com os dados extraídos.
-      - titulo: Título do gráfico.
-      - data_inicio: Data inicial do período.
-      - data_fim: Data final do período.
-      - periodo: Tipo de agregação: "Ano", "Mês", "Semana" ou "Seleciona data".
+    Gera o gráfico de área (valores absolutos) e, abaixo dele, o gráfico de barras empilhadas (colunas PERC_*).
+    Exibe também as tabelas de vendas e percentuais.
     """
     try:
-        # Pré-processamento: converter datas e filtrar o período
+        # Converter datas e filtrar
         df['CADASTRO'] = pd.to_datetime(df['CADASTRO'])
         df = df[(df['CADASTRO'] >= pd.Timestamp(data_inicio)) & 
                 (df['CADASTRO'] <= pd.Timestamp(data_fim))]
         df['MODO'] = df['MODO'].astype(str)
         
-        # Se algum ROMANEIO tiver registro 'CASADA', marca todos como 'CASADA'
+        # Se algum ROMANEIO tiver 'CASADA', todos viram 'CASADA'
         romaneios_casada = df.loc[df['MODO'] == 'CASADA', 'ROMANEIO'].unique()
         df.loc[df['ROMANEIO'].isin(romaneios_casada), 'MODO'] = 'CASADA'
         
-        # Variável para o intervalo selecionado (usada na tabela de totais)
         periodo_data_str = f"{data_inicio.strftime('%d/%m/%Y')} - {data_fim.strftime('%d/%m/%Y')}"
         
         if periodo == "Ano":
+            # 1) Criar as colunas de mês e agrupar
             df['mes'] = df['CADASTRO'].dt.month
             venda_agrupada = df.groupby(['mes', 'LOJA', 'MODO']).size().unstack(fill_value=0).reset_index()
             venda_agrupada = add_total_and_percentages(venda_agrupada, MODOS)
             venda_agrupada['mes_nome'] = venda_agrupada['mes'].apply(lambda m: calendar.month_name[m])
             venda_agrupada = venda_agrupada.sort_values('mes')
+            
+            # Ordenar colunas e ajustar final
             colunas_final = ['mes_nome', 'LOJA'] + MODOS + ['TOTAL'] + [f'PERC_{modo}' for modo in MODOS]
             venda_agrupada = venda_agrupada[colunas_final]
             
-            # Agregação para o gráfico: soma sobre as lojas
+            # 2) Dados para o gráfico de Área e Barras Agrupadas
+            #    Somamos por 'mes_nome' para ter 1 linha por mês
             venda_agrupada_graph = venda_agrupada.groupby('mes_nome', as_index=False)[MODOS].sum()
+            
+            # Ordenar o DataFrame pelos meses de 1 a 12
             meses_ordem = [calendar.month_name[i] for i in range(1, 13)]
             venda_agrupada_graph['mes_nome'] = pd.Categorical(
-                venda_agrupada_graph['mes_nome'], categories=meses_ordem, ordered=True
+                venda_agrupada_graph['mes_nome'], 
+                categories=meses_ordem, 
+                ordered=True
             )
             venda_agrupada_graph = venda_agrupada_graph.sort_values('mes_nome')
-            fig = create_area_chart(venda_agrupada_graph, 'mes_nome', MODOS, titulo, 'Mês', CORES)
             
-            st.subheader("Gráfico de Área")
-            st.plotly_chart(fig)
-            if st.checkbox("Tabela com Vendas e Percentuais"):
-                st.subheader("Tabela com Vendas e Percentuais")
-                st.dataframe(venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            # 3) Gráfico de Área (Valores Absolutos)
+            fig_area = create_area_chart(
+                venda_agrupada_graph, 
+                x_col='mes_nome', 
+                modos=MODOS, 
+                titulo=titulo, 
+                x_label='Mês', 
+                cores=CORES
+            )
+            st.subheader("Gráfico de Área (Valores Absolutos)")
+            st.plotly_chart(fig_area)
             
-            # Tabela com os totais do período (agrupado por loja)
+            # 4) NOVO: Gráfico de Barras Agrupadas (Valores Absolutos)
+            fig_barras = create_grouped_bar_chart(
+                venda_agrupada_graph,
+                x_col='mes_nome',
+                modos=MODOS,
+                titulo=titulo + " (Barras Agrupadas)",
+                x_label='Mês',
+                cores=CORES
+            )
+            st.subheader("Gráfico de Barras (Valores Absolutos)")
+            st.plotly_chart(fig_barras)
+            
+            # 5) Gráfico de Barras Empilhadas (Percentuais)
+            modos_perc = [f'PERC_{modo}' for modo in MODOS]
+            
+            # Aqui, fazemos a média das porcentagens por 'mes_nome'
+            df_percentual = venda_agrupada.groupby('mes_nome', as_index=False)[modos_perc].mean()
+
+            df_percentual['mes_nome'] = pd.Categorical(df_percentual['mes_nome'], categories=meses_ordem, ordered=True)
+
+            # Agora, ao ordenar, os meses serão exibidos na ordem cronológica
+            df_percentual = df_percentual.sort_values('mes_nome')
+            
+            fig_stack = create_stacked_bar_chart_percent(
+                data=df_percentual,
+                x_col='mes_nome',
+                modos_perc=modos_perc,
+                titulo=titulo + " (Percentual)",
+                x_label='Mês',
+                cores=CORES_PERC
+            )
+            st.subheader("Gráfico de Barras Empilhadas (Percentuais)")
+            st.plotly_chart(fig_stack)
+    
+            # 6) Tabela com Vendas e Percentuais
+            st.text("Tabela com Vendas e Percentuais")
+            st.subheader("Tabela com Vendas e Percentuais")
+            st.dataframe(
+                venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS})
+            )
+            
+            # Tabela com Totais ---------------------------
             df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
             for modo in MODOS:
                 df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
@@ -228,58 +343,55 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
             st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
         
         elif periodo == "Mês":
-            df['dia'] = df['CADASTRO'].dt.day
-            venda_agrupada = df.groupby(['dia', 'LOJA', 'MODO']).size().unstack(fill_value=0).reset_index()
+            # Calcula a semana do mês (1ª semana, 2ª, etc.)
+            df['semana'] = ((df['CADASTRO'].dt.day - 1) // 7) + 1
+
+            # Agrupa os dados por semana, LOJA e MODO
+            venda_agrupada = df.groupby(['semana', 'LOJA', 'MODO']).size().unstack(fill_value=0).reset_index()
             venda_agrupada = add_total_and_percentages(venda_agrupada, MODOS)
-            venda_agrupada = venda_agrupada.sort_values('dia')
-            colunas_final = ['dia', 'LOJA'] + MODOS + ['TOTAL'] + [f'PERC_{modo}' for modo in MODOS]
+            venda_agrupada = venda_agrupada.sort_values('semana')
+
+            colunas_final = ['semana', 'LOJA'] + MODOS + ['TOTAL'] + [f'PERC_{modo}' for modo in MODOS]
             venda_agrupada = venda_agrupada[colunas_final]
-            
-            venda_agrupada_graph = venda_agrupada.groupby('dia', as_index=False)[MODOS].sum()
-            venda_agrupada_graph = venda_agrupada_graph.sort_values('dia')
-            fig = create_area_chart(venda_agrupada_graph, 'dia', MODOS, titulo, 'Dia', CORES)
-            
-            st.subheader("Gráfico de Área")
-            st.plotly_chart(fig)
-            if st.checkbox("Tabela com Vendas e Percentuais"):
-                st.subheader("Tabela com Vendas e Percentuais")
-                st.dataframe(venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
-            
-            # Tabela com Totais do Período
-            df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
-            for modo in MODOS:
-                df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
-            df_totals.insert(0, 'periodo_data', periodo_data_str)
-            st.subheader("Tabela com Totais do Período")
-            st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
-        
-        elif periodo == "Semana":
-            df['dia_semana'] = df['CADASTRO'].dt.dayofweek
-            df = df[df['dia_semana'] < 6]  # considerar somente segunda a sábado
-            venda_agrupada = df.groupby(['dia_semana', 'LOJA', 'MODO']).size().unstack(fill_value=0).reset_index()
-            venda_agrupada = add_total_and_percentages(venda_agrupada, MODOS)
-            mapping = {0: 'segunda', 1: 'terça', 2: 'quarta', 3: 'quinta', 4: 'sexta', 5: 'sábado'}
-            venda_agrupada['dia_nome'] = venda_agrupada['dia_semana'].map(mapping)
-            venda_agrupada = venda_agrupada.sort_values('dia_semana')
-            colunas_final = ['dia_nome', 'LOJA'] + MODOS + ['TOTAL'] + [f'PERC_{modo}' for modo in MODOS]
-            venda_agrupada = venda_agrupada[colunas_final]
-            
-            venda_agrupada_graph = venda_agrupada.groupby('dia_nome', as_index=False)[MODOS].sum()
-            venda_agrupada_graph['dia_nome'] = pd.Categorical(
-                venda_agrupada_graph['dia_nome'],
-                categories=DIAS_SEMANA,
-                ordered=True
+
+            # Gráfico de Área (valores absolutos)
+            venda_agrupada_graph = venda_agrupada.groupby('semana', as_index=False)[MODOS].sum()
+            venda_agrupada_graph = venda_agrupada_graph.sort_values('semana')
+
+            fig_area = create_area_chart(
+                venda_agrupada_graph, 
+                x_col='semana', 
+                modos=MODOS, 
+                titulo=titulo, 
+                x_label='Semana', 
+                cores=CORES
             )
-            venda_agrupada_graph = venda_agrupada_graph.sort_values('dia_nome')
-            fig = create_area_chart(venda_agrupada_graph, 'dia_nome', MODOS, titulo, 'Dia da Semana', CORES)
+            st.subheader("Gráfico de Área (Valores Absolutos)")
+            st.plotly_chart(fig_area)
+
+            # Gráfico de Barras (Percentuais) - colunas PERC_*
+            modos_perc = [f'PERC_{modo}' for modo in MODOS]
+            # Média das porcentagens por semana
+            df_percentual = venda_agrupada.groupby('semana', as_index=False)[modos_perc].mean()
+
+            fig_stack = create_stacked_bar_chart_percent(
+                data=df_percentual,
+                x_col='semana',
+                modos_perc=modos_perc,
+                titulo=titulo + " (Percentual)",
+                x_label='Semana',
+                cores=CORES_PERC
+            )
+            st.subheader("Gráfico de Barras Empilhadas (Percentuais)")
+            st.plotly_chart(fig_stack)
+
             
-            st.subheader("Gráfico de Área")
-            st.plotly_chart(fig)
-            if st.checkbox("Tabela com Vendas e Percentuais"):
-                st.subheader("Tabela com Vendas e Percentuais")
-                st.dataframe(venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            # # Tabela com Vendas e Percentuais
+            st.text("Tabela com Vendas e Percentuais")
+            st.subheader("Tabela com Vendas e Percentuais")
+            st.dataframe(venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
             
-            # Tabela com Totais do Período
+            # Tabela com Totais ------------------------------
             df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
             for modo in MODOS:
                 df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
@@ -287,33 +399,70 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
             st.subheader("Tabela com Totais do Período")
             st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
         
-        elif periodo == "Seleciona data":
-            # Agrupamento diário: cria uma coluna com a data (formato dia/mês/ano)
-            df['periodo_data'] = df['CADASTRO'].dt.date
-            venda_agrupada = df.groupby(['periodo_data', 'LOJA', 'MODO']).size().unstack(fill_value=0).reset_index()
+        elif periodo == "Selecione data":
+            df['semana_period'] = df['CADASTRO'].dt.to_period('W')
+            df['semana'] = df['semana_period'].apply(lambda r: r.start_time)
+            
+            df['semana_ano'] = df['CADASTRO'].dt.isocalendar().year
+            df['semana_num'] = df['CADASTRO'].dt.isocalendar().week
+            df['semana_label'] = df['semana'].dt.strftime('%d/%m/%Y')
+            
+            venda_agrupada = df.groupby(
+                ['semana', 'semana_ano', 'semana_num', 'semana_label', 'LOJA', 'MODO']
+            ).size().unstack(fill_value=0).reset_index()
             venda_agrupada = add_total_and_percentages(venda_agrupada, MODOS)
-            venda_agrupada = venda_agrupada.sort_values('periodo_data')
-            colunas_final = ['periodo_data', 'LOJA'] + MODOS + ['TOTAL'] + [f'PERC_{modo}' for modo in MODOS]
+            venda_agrupada = venda_agrupada.sort_values('semana')
+            
+            colunas_final = ['semana', 'semana_ano', 'semana_num', 'semana_label', 'LOJA'] \
+                            + MODOS + ['TOTAL'] \
+                            + [f'PERC_{modo}' for modo in MODOS]
             venda_agrupada = venda_agrupada[colunas_final]
             
-            # Agregação para o gráfico: soma as vendas diárias (soma sobre as lojas)
-            venda_agrupada_graph = venda_agrupada.groupby('periodo_data', as_index=False)[MODOS].sum()
-            venda_agrupada_graph = venda_agrupada_graph.sort_values('periodo_data')
+            # Gráfico de Área (valores absolutos)
+            venda_agrupada_graph = venda_agrupada.groupby(
+                ['semana', 'semana_ano', 'semana_num', 'semana_label'],
+                as_index=False
+            )[MODOS].sum()
+            venda_agrupada_graph = venda_agrupada_graph.sort_values('semana')
             
-            fig = create_area_chart(venda_agrupada_graph, 'periodo_data', MODOS, titulo, 'Data', CORES)
-            st.subheader("Gráfico de Área")
-            st.plotly_chart(fig)
-            if st.checkbox("Tabela com Vendas e Percentuais"):
-                st.subheader("Tabela com Vendas e Percentuais")
-                st.dataframe(venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            fig_area = create_area_chart(
+                venda_agrupada_graph,
+                x_col='semana_label',
+                modos=MODOS,
+                titulo=titulo,
+                x_label='Semana',
+                cores=CORES
+            )
+            st.subheader("Gráfico de Área (Valores Absolutos)")
+            st.plotly_chart(fig_area)
             
-            # Tabela com os totais do período (agrupado por loja)
-            df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
-            for modo in MODOS:
-                df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
-            df_totals.insert(0, 'periodo_data', periodo_data_str)
-            st.subheader("Tabela com Totais do Período")
-            st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            # Gráfico de Barras (Percentuais) - colunas PERC_*
+            modos_perc = [f'PERC_{modo}' for modo in MODOS]
+            df_percentual = venda_agrupada.groupby('semana_label', as_index=False)[modos_perc].mean()
+            
+            fig_stack = create_stacked_bar_chart_percent(
+                data=df_percentual,
+                x_col='semana_label',
+                modos_perc=modos_perc,
+                titulo=titulo + " (Percentual)",
+                x_label='Semana',
+                cores=CORES_PERC
+            )
+            st.subheader("Gráfico de Barras Empilhadas (Percentuais)")
+            st.plotly_chart(fig_stack)
+            
+            # # Tabelas
+            # df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
+            # for modo in MODOS:
+            #     df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
+            # df_totals.insert(0, 'periodo_data', periodo_data_str)
+            # st.subheader("Tabela com Totais do Período")
+            # st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            
+            # st.subheader("Tabela com Vendas e Percentuais")
+            # st.dataframe(
+            #     venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS})
+            # )
         
         else:
             st.error("Tipo de período inválido.")
@@ -330,7 +479,6 @@ def main():
     loja_dict = dict(zip(df_lojas['codigo'], df_lojas['nome']))
     
     st.sidebar.write("## Selecione os parâmetros")
-    # Seleção da loja
     loja_selecionada = st.sidebar.selectbox(
         "Selecione a loja",
         options=list(loja_dict.keys()),
@@ -338,11 +486,10 @@ def main():
         key="mnavh_loja"
     )
     
-    # Seleção do tipo de agregação (Ano, Mês, Semana ou Seleciona data)
-    navegacao = st.sidebar.radio("Navegação", options=["Ano", "Mês", "Semana", "Seleciona data"], key="mnavh_navegacao")
+    navegacao = st.sidebar.radio("Navegação", options=["Ano", "Mês", "Selecione data"], key="mnavh_navegacao")
     
     if navegacao == "Ano":
-        anos = obter_ultimos_anos()
+        anos = obter_ultimos_anos() 
         ano_selecionado = st.sidebar.selectbox("Selecione o ano", options=anos, key="mnavh_ano")
         data_inicio = datetime(ano_selecionado, 1, 1)
         data_fim = datetime(ano_selecionado, 12, 31)
@@ -360,45 +507,24 @@ def main():
         _, ultimo_dia = calendar.monthrange(ano_selecionado, mes_index)
         data_fim = datetime(ano_selecionado, mes_index, ultimo_dia)
         if st.sidebar.button("Gerar gráfico e tabela"):
-            titulo = f"Vendas por Dia - {mes_selecionado}/{ano_selecionado}"
+            titulo = f"Vendas por Semana - {mes_selecionado}/{ano_selecionado}"
             process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Mês")
                 
-    elif navegacao == "Semana":
-        anos = obter_ultimos_anos()
-        ano_selecionado = st.sidebar.selectbox("Selecione o ano", options=anos, key="mnavh_semana_ano")
-        meses = obter_meses()
-        mes_selecionado = st.sidebar.selectbox("Selecione o mês", options=meses, key="mnavh_semana_mes")
-        mes_index = meses.index(mes_selecionado) + 1
-        total_semanas = obter_semanas(ano_selecionado, mes_index)
-        semana_selecionada = st.sidebar.selectbox("Selecione a semana", options=list(range(1, total_semanas + 1)), key="mnavh_semana_semana")
-        
-        calendario_mes = calendar.monthcalendar(ano_selecionado, mes_index)
-        semana = calendario_mes[semana_selecionada - 1]
-        valid_days = [d for d in semana if d != 0]
-        if not valid_days:
-            st.warning("Semana selecionada não possui dias válidos.")
-            return
-        data_inicio = datetime(ano_selecionado, mes_index, valid_days[0])
-        data_fim = datetime(ano_selecionado, mes_index, valid_days[-1])
-        if st.sidebar.button("Gerar gráfico e tabela"):
-            titulo = f"Vendas por Dia da Semana - Semana {semana_selecionada} de {mes_selecionado}/{ano_selecionado}"
-            process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Semana")
-    
-    elif navegacao == "Seleciona data":
-        # Seleção separada de data inicial e data final
-        data_inicio_input = st.sidebar.date_input("Data Inicial", key="mnavh_data_inicio")
-        data_fim_input = st.sidebar.date_input("Data Final", key="mnavh_data_fim")
+    elif navegacao == "Selecione data":
+        st.sidebar.write("## Selecione o intervalo de datas para agrupar por semana")
+        data_inicio_input = st.sidebar.date_input("Data Inicial", key="mnavh_semana_data_inicio")
+        data_fim_input = st.sidebar.date_input("Data Final", key="mnavh_semana_data_fim")
         
         if not data_inicio_input or not data_fim_input:
             st.error("Selecione as duas datas: Data Inicial e Data Final.")
             return
-
+        
         data_inicio = datetime.combine(data_inicio_input, datetime.min.time())
         data_fim = datetime.combine(data_fim_input, datetime.max.time())
         
         if st.sidebar.button("Gerar gráfico e tabela"):
-            titulo = f"Vendas no período: {data_inicio_input.strftime('%d/%m/%Y')} a {data_fim_input.strftime('%d/%m/%Y')}"
-            process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Seleciona data")
+            titulo = f"Vendas por Semana: {data_inicio_input.strftime('%d/%m/%Y')} a {data_fim_input.strftime('%d/%m/%Y')}"
+            process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Semana")
 
 if __name__ == "__main__":
     main()

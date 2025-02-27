@@ -4,6 +4,7 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,7 +16,7 @@ import calendar
 # st.set_page_config(page_title="Entrega e suas métricas", layout="wide", page_icon="📊")
 
 # Lista global de dias da semana
-dias_semana = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+dias_semana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
 # Função para criar conexão com o banco de dados
 def criar_conexao():
@@ -173,13 +174,22 @@ def gerar_mapa_calor(df, titulo, dias_validos, data_inicio, data_fim, categoria_
             agrupado_40 = agrupado_40[dias_disponiveis]
 
             # Gerar mapa de calor para ambas as métricas
-            for titulo, dados in zip(['Total de Entregas mediana, e filtro de remoção de valores discrepantes', 'Quantidade Entregas em até 40 minutos por cada hora'], [agrupado_total, agrupado_40]):
+            for titulo, dados in zip(
+                ['Total de Entregas mediana, e filtro de remoção de valores discrepantes', 
+                'Quantidade Entregas em até 40 minutos por cada hora'], 
+                [agrupado_total, agrupado_40]
+            ):
                 plt.figure(figsize=(10, 6))
-                sns.heatmap(dados, annot=True, fmt='.0f', cmap='Blues', cbar=True)
+                ax = sns.heatmap(dados, annot=True, fmt='.0f', cmap='Blues', cbar=True)
                 plt.title(f"{titulo}")
-                plt.xlabel("Dia da Semana")
+                
+                # Move o rótulo do eixo X para o topo
+                ax.xaxis.set_label_position('top')  # define a posição do rótulo para o topo
+                ax.xaxis.tick_top()                  # move as marcações do eixo X para o topo
+                ax.set_xlabel("Dia da Semana", labelpad=10)  # define o rótulo com um espaçamento extra, se necessário
+                
                 plt.ylabel("Hora")
-                plt.xticks(rotation=45)
+                plt.xticks(rotation=0)
                 plt.yticks(rotation=0)
                 st.pyplot(plt)
                 plt.clf()
@@ -194,11 +204,17 @@ def gerar_mapa_calor(df, titulo, dias_validos, data_inicio, data_fim, categoria_
 
             # Criar o mapa de calor
             plt.figure(figsize=(10, 6))
-            sns.heatmap(df_agrupado, annot=True, fmt='.0f', cmap='Blues', cbar=True)
+            ax = sns.heatmap(df_agrupado, annot=True, fmt='.0f', cmap='Blues', cbar=True)
             plt.title(f"{titulo} - Mediana de Contagem de Romaneios")
-            plt.xlabel("Dia da Semana")
+
+                            # Move o rótulo do eixo X para o topo
+            ax.xaxis.set_label_position('top')  # define a posição do rótulo para o topo
+            ax.xaxis.tick_top()                  # move as marcações do eixo X para o topo
+            ax.set_xlabel("Dia da Semana", labelpad=10)
+
+            # plt.xlabel("Dia da Semana")
             plt.ylabel("Hora")
-            plt.xticks(rotation=45)
+            plt.xticks(rotation=0)
             plt.yticks(rotation=0)
             st.pyplot(plt)
             plt.clf()  
@@ -208,9 +224,14 @@ def gerar_mapa_calor(df, titulo, dias_validos, data_inicio, data_fim, categoria_
             df_agrupado = df_agrupado[dias_disponiveis]
 
             plt.figure(figsize=(10, 6))
-            sns.heatmap(df_agrupado, annot=True, fmt='.1f', cmap='Blues', cbar=True)
+            bx = sns.heatmap(df_agrupado, annot=True, fmt='.1f', cmap='Blues', cbar=True)
             plt.title(f"{titulo}")
-            plt.xlabel("Dia da Semana")
+
+            bx.xaxis.set_label_position('top')  # define a posição do rótulo para o topo
+            bx.xaxis.tick_top()                  # move as marcações do eixo X para o topo
+            bx.set_xlabel("Dia da Semana", labelpad=10)
+
+            # plt.xlabel("Dia da Semana")
             plt.ylabel("Hora")
             st.pyplot(plt)
             plt.clf()

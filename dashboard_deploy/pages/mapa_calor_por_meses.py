@@ -1,10 +1,11 @@
+
 import streamlit as st
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
-    
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,7 +17,7 @@ import calendar
 # st.set_page_config(page_title="Entrega e suas métricas", layout="wide", page_icon="📊")
 
 # Lista global de dias da semana
-dias_semana = ['segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+dias_semana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 
 # Função para criar conexão com o banco de dados
 def criar_conexao():
@@ -180,11 +181,15 @@ def gerar_mapa_calor(df, titulo, dias_validos, data_inicio, data_fim, categoria_
 
         # Gerar o mapa de calor
         plt.figure(figsize=(10, 6))
-        sns.heatmap(tabela, annot=True, fmt='.0f', cmap='Blues', cbar=True)
+        x = sns.heatmap(tabela, annot=True, fmt='.0f', cmap='Blues', cbar=True)
         plt.title(titulo)
-        plt.xlabel("Dia da Semana")
+
+        x.xaxis.set_label_position('top')  # define a posição do rótulo para o topo
+        x.xaxis.tick_top()                  # move as marcações do eixo X para o topo
+        x.set_xlabel("Dia da Semana", labelpad=10)
+        # plt.xlabel("Dia da Semana")
         plt.ylabel("Mês")
-        plt.xticks(rotation=45)
+        plt.xticks(rotation=0)
         plt.yticks(rotation=0)
         st.pyplot(plt)
     

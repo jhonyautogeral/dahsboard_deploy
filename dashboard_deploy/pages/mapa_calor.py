@@ -5,11 +5,12 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.switch_page("app.py")
     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
 
+
 # from navigation import make_sidebar  
 # # Chamada para criar a barra lateral (se aplicável)
 # make_sidebar()
 
-st.set_page_config(page_title="Entrega e suas métricas", layout="wide")
+st.set_page_config(page_title="Mapa de calor de Entregas", layout="wide")
 
 # Título e imagem da página
 st.write("## MAPAS DE CALOR.")
