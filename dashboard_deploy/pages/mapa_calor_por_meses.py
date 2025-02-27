@@ -135,7 +135,7 @@ def gerar_mapa_calor(df, titulo, dias_validos, data_inicio, data_fim, categoria_
         df['CADASTRO'] = pd.to_datetime(df['CADASTRO'])
         df['DIA_DA_SEMANA'] = df['CADASTRO'].dt.dayofweek.map(lambda x: dias_semana[x])
         df['MES'] = df['CADASTRO'].dt.month
-        df['MES'] = df['MES'].map({1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4:'Abril', 5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro'})
+        df['MES'] = df['MES'].map({1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4:'Abril', 5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'})
         df['MES'] = pd.Categorical(df['MES'], categories=['Janeiro','Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho','Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'], ordered=True)
         df = df.sort_values('MES')
         df['DIA'] = df['CADASTRO'].dt.date
