@@ -10,7 +10,7 @@ ACCESS_CONTROL = {
     "mapa_calor.py": ["Gestor","Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
     "totais_entrega.py": ["Gestor","Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
     # "entrega_completa.py": ["Gestor","Encarregado", "Estagiário de TI", "Sócio"],
-    "custo-frota.py": ["Gestor","Contas_pagar", "Estagiário de TI", "Sócio"],
+    # "custo-frota.py": ["Gestor","Contas_pagar", "Estagiário de TI", "Sócio"],
     "02margens.py": ["Gestor","VENDAS", "Contas_pagar", "Compras", "Sócio", "Estagiário de TI"],
     "manutencao_custo_frota.py": ["Gestor","Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
     "abastecimento_veic.py": ["Gestor","Contas_pagar", "Compras", "Estagiário de TI", "Sócio"]
@@ -23,7 +23,7 @@ PAGES = [
     {"file": "modo_vendas.py", "label": "Modo Vendas", "permitir": ACCESS_CONTROL.get("modo_vendas.py")},
     {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": ACCESS_CONTROL.get("entrega_em_40.py")},
     # {"file": "entrega_completa.py", "label": "Entrega Completa", "permitir": ACCESS_CONTROL.get("entrega_completa.py")},
-    {"file": "custo-frota.py", "label": "Custo da Frota", "permitir": ACCESS_CONTROL.get("custo-frota.py")},
+    # {"file": "custo-frota.py", "label": "Custo da Frota", "permitir": ACCESS_CONTROL.get("custo-frota.py")},
     {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": ACCESS_CONTROL.get("abastecimento_veic.py")},
     {"file": "manutencao_custo_frota.py", "label": "Manutenção Custo Frota", "permitir": ACCESS_CONTROL.get("manutencao_custo_frota.py")},
 ]
