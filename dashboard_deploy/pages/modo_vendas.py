@@ -493,9 +493,9 @@ def main():
         ano_selecionado = st.sidebar.selectbox("Selecione o ano", options=anos, key="mnavh_ano")
         data_inicio = datetime(ano_selecionado, 1, 1)
         data_fim = datetime(ano_selecionado, 12, 31)
-        if st.sidebar.button("Gerar gráfico e tabela"):
-            titulo = f"Vendas por Mês - {ano_selecionado}"
-            process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Ano")
+        # if st.sidebar.button("Gerar gráfico e tabela"):
+        titulo = f"Vendas por Mês - {ano_selecionado}"
+        process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Ano")
                 
     elif navegacao == "Mês":
         anos = obter_ultimos_anos()
@@ -506,9 +506,9 @@ def main():
         data_inicio = datetime(ano_selecionado, mes_index, 1)
         _, ultimo_dia = calendar.monthrange(ano_selecionado, mes_index)
         data_fim = datetime(ano_selecionado, mes_index, ultimo_dia)
-        if st.sidebar.button("Gerar gráfico e tabela"):
-            titulo = f"Vendas por Semana - {mes_selecionado}/{ano_selecionado}"
-            process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Mês")
+        # if st.sidebar.button("Gerar gráfico e tabela"):
+        titulo = f"Vendas por Semana - {mes_selecionado}/{ano_selecionado}"
+        process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Mês")
                 
     elif navegacao == "Selecione data":
         st.sidebar.write("## Selecione o intervalo de datas para agrupar por semana")
@@ -522,9 +522,9 @@ def main():
         data_inicio = datetime.combine(data_inicio_input, datetime.min.time())
         data_fim = datetime.combine(data_fim_input, datetime.max.time())
         
-        if st.sidebar.button("Gerar gráfico e tabela"):
-            titulo = f"Vendas por Semana: {data_inicio_input.strftime('%d/%m/%Y')} a {data_fim_input.strftime('%d/%m/%Y')}"
-            process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Semana")
+        # if st.sidebar.button("Gerar gráfico e tabela"):
+        titulo = f"Vendas por Semana: {data_inicio_input.strftime('%d/%m/%Y')} a {data_fim_input.strftime('%d/%m/%Y')}"
+        process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Semana")
 
 if __name__ == "__main__":
     main()

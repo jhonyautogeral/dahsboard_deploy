@@ -10,7 +10,7 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
 # # Chamada para criar a barra lateral (se aplicável)
 # make_sidebar()
 
-st.set_page_config(page_title="Mapa de calor de Entregas", layout="wide")
+st.set_page_config(page_title="Mapa de calor de Entregas")
 
 # Título e imagem da página
 st.write("## MAPAS DE CALOR.")
