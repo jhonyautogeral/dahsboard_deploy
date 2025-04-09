@@ -21,7 +21,7 @@ def get_user_cargo(user_email):
     """
     
     query = pd.read_sql_query(query, con= engine)
-    print('Antes do filtro',query)
+    # print('Antes do filtro',query)
 
     user_data = query[query["E_MAIL"] == user_email]
     if not user_data.empty:

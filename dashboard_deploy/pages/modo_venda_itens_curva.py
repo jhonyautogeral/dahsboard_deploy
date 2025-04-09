@@ -1,9 +1,9 @@
 import streamlit as st
 # Proteção de acesso
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    st.warning("Você não está logado. Redirecionando para a página de login...")
-    st.switch_page("app.py")
-    st.stop()  # Interrompe a execução para evitar continuar carregando esta página
+# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+#     st.warning("Você não está logado. Redirecionando para a página de login...")
+#     st.switch_page("app.py")
+#     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
 
 import pandas as pd
 import calendar
@@ -94,10 +94,8 @@ def gerar_query_dados(inicio, fim, loja):
     WHERE R.LOJA = {loja}
       AND R.OPERACAO_CODIGO IN (1,2,3,45)
       AND R.CADASTRO BETWEEN '{inicio_str}' AND '{fim_str}'
-      AND R.SITUACAO = 'FECHADO'
-      
+      AND R.SITUACAO = 'FECHADO'      
     UNION
-    
     SELECT R.CADASTRO,
            (R.ROMANEIO*100+R.LOJA) AS ROMANEIO,
            R.LOJA,
@@ -163,7 +161,7 @@ def create_grouped_bar_chart(data, x_col, modos, titulo, x_label, cores):
     x_label: Rótulo do eixo X.
     cores: Dicionário {modo: cor}, ex.: {'CASADA': '#636EFA', ...}.
     """
-    # 'derrete' o DataFrame de largo para longo, para Plotly
+    # 'derrete' o DataFrame de largo para longo, para usar em Plotly
     df_melted = data.melt(
         id_vars=[x_col], 
         value_vars=modos, 
@@ -205,7 +203,6 @@ def create_stacked_bar_chart_percent(data, x_col, modos_perc, titulo, x_label, c
         var_name='MODO',
         value_name='VALOR'
     )
-    # df_melted agora terá colunas: [x_col, 'MODO', 'VALOR']
 
     fig = px.bar(
         df_melted,
@@ -216,7 +213,7 @@ def create_stacked_bar_chart_percent(data, x_col, modos_perc, titulo, x_label, c
         color_discrete_map=cores,
         labels={x_col: x_label, 'VALOR': 'Percentual'}
     )
-    # Já estamos em porcentagem, então apenas empilhamos
+    # Já em porcentagem, então apenas empilhar as barras
     fig.update_layout(barmode='stack', yaxis=dict(range=[0,100]))
     
     # Exibe o texto do valor (ex.: 30.5%) dentro das barras
@@ -239,12 +236,8 @@ def process_visualizacao(engine, data_inicio, data_fim, loja, titulo, periodo):
         gerar_grafico(df, titulo, data_inicio, data_fim, periodo)
 
 def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
-    """
-    Gera o gráfico de área (valores absolutos) e, abaixo dele, o gráfico de barras empilhadas (colunas PERC_*).
-    Exibe também as tabelas de vendas e percentuais.
-    """
     try:
-        # Converter datas e filtrar
+        # Converter datas e filtrar o período
         df['CADASTRO'] = pd.to_datetime(df['CADASTRO'])
         df = df[(df['CADASTRO'] >= pd.Timestamp(data_inicio)) & 
                 (df['CADASTRO'] <= pd.Timestamp(data_fim))]
@@ -257,22 +250,16 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
         periodo_data_str = f"{data_inicio.strftime('%d/%m/%Y')} - {data_fim.strftime('%d/%m/%Y')}"
         
         if periodo == "Ano":
-            # 1) Criar as colunas de mês e agrupar
+
             df['mes'] = df['CADASTRO'].dt.month
             venda_agrupada = df.groupby(['mes', 'LOJA', 'MODO']).size().unstack(fill_value=0).reset_index()
             venda_agrupada = add_total_and_percentages(venda_agrupada, MODOS)
             venda_agrupada['mes_nome'] = venda_agrupada['mes'].apply(lambda m: calendar.month_name[m])
             venda_agrupada = venda_agrupada.sort_values('mes')
-            
-            # Ordenar colunas e ajustar final
             colunas_final = ['mes_nome', 'LOJA'] + MODOS + ['TOTAL'] + [f'PERC_{modo}' for modo in MODOS]
             venda_agrupada = venda_agrupada[colunas_final]
             
-            # 2) Dados para o gráfico de Área e Barras Agrupadas
-            #    Somamos por 'mes_nome' para ter 1 linha por mês
             venda_agrupada_graph = venda_agrupada.groupby('mes_nome', as_index=False)[MODOS].sum()
-            
-            # Ordenar o DataFrame pelos meses de 1 a 12
             meses_ordem = [calendar.month_name[i] for i in range(1, 13)]
             venda_agrupada_graph['mes_nome'] = pd.Categorical(
                 venda_agrupada_graph['mes_nome'], 
@@ -281,7 +268,6 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
             )
             venda_agrupada_graph = venda_agrupada_graph.sort_values('mes_nome')
             
-            # 3) Gráfico de Área (Valores Absolutos)
             fig_area = create_area_chart(
                 venda_agrupada_graph, 
                 x_col='mes_nome', 
@@ -293,7 +279,6 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
             st.subheader("Gráfico de Área (Valores Absolutos)")
             st.plotly_chart(fig_area)
             
-            # 4) NOVO: Gráfico de Barras Agrupadas (Valores Absolutos)
             fig_barras = create_grouped_bar_chart(
                 venda_agrupada_graph,
                 x_col='mes_nome',
@@ -305,15 +290,9 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
             st.subheader("Gráfico de Barras (Valores Absolutos)")
             st.plotly_chart(fig_barras)
             
-            # 5) Gráfico de Barras Empilhadas (Percentuais)
             modos_perc = [f'PERC_{modo}' for modo in MODOS]
-            
-            # Aqui, fazemos a média das porcentagens por 'mes_nome'
             df_percentual = venda_agrupada.groupby('mes_nome', as_index=False)[modos_perc].mean()
-
             df_percentual['mes_nome'] = pd.Categorical(df_percentual['mes_nome'], categories=meses_ordem, ordered=True)
-
-            # Agora, ao ordenar, os meses serão exibidos na ordem cronológica
             df_percentual = df_percentual.sort_values('mes_nome')
             
             fig_stack = create_stacked_bar_chart_percent(
@@ -324,40 +303,110 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
                 x_label='Mês',
                 cores=CORES_PERC
             )
-            st.subheader("Gráfico de Barras Empilhadas (Percentuais)")
+            st.subheader("Gráfico de Barras Empilhadas (Percentual de Vendas)")
             st.plotly_chart(fig_stack)
     
-            # 6) Tabela com Vendas e Percentuais
-            st.text("Tabela com Vendas e Percentuais")
             st.subheader("Tabela com Vendas e Percentuais")
             st.dataframe(
                 venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS})
             )
             
-            # Tabela com Totais ---------------------------
             df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
             for modo in MODOS:
                 df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
             df_totals.insert(0, 'periodo_data', periodo_data_str)
             st.subheader("Tabela com Totais do Período")
             st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            
+            # -------------------------------
+            # NOVA análise: CURVA_PRODUTO para PRONTA_ENTREGA (por Mês)
+            # -------------------------------
+            df_curva_pronta = df[df['MODO'] == 'PRONTA_ENTREGA'].copy()
+            # (1) TRATA VALORES NULOS/VAZIOS EM CURVA_PRODUTO (sem inplace e sem loc encadeado)
+            df_curva_pronta['CURVA_PRODUTO'] = (
+                df_curva_pronta['CURVA_PRODUTO']
+                .fillna('')          # Substitui NaN por string vazia
+                .str.strip()        # Remove espaços no início/fim
+                .replace({'': 'SEM_CURVA'})  # Substitui '' por 'SEM_CURVA'
+            )
+            
+            df_curva_pronta['mes'] = df_curva_pronta['CADASTRO'].dt.month
+            df_curva_pronta['mes_nome'] = df_curva_pronta['mes'].apply(lambda m: calendar.month_name[m])
+            
+            curva_agrupada_pronta = df_curva_pronta.groupby(['mes_nome', 'CURVA_PRODUTO']).size().reset_index(name='Quantidade')
+            curva_pivot_pronta = curva_agrupada_pronta.pivot(index='mes_nome', columns='CURVA_PRODUTO', values='Quantidade').fillna(0).reset_index()
+            curva_pivot_pronta['TOTAL'] = curva_pivot_pronta.drop(columns='mes_nome').sum(axis=1)
+            for col in curva_pivot_pronta.columns:
+                if col not in ['mes_nome', 'TOTAL']:
+                    curva_pivot_pronta[f'PERC_{col}'] = (curva_pivot_pronta[col] / curva_pivot_pronta['TOTAL'].replace(0,1)) * 100
+            cols_perc_pronta = [col for col in curva_pivot_pronta.columns if col.startswith('PERC_')]
+            curva_pivot_pronta['mes_nome'] = pd.Categorical(curva_pivot_pronta['mes_nome'], categories=meses_ordem, ordered=True)
+            curva_pivot_pronta = curva_pivot_pronta.sort_values('mes_nome')
+            df_percentual_curva_pronta = curva_pivot_pronta[['mes_nome'] + cols_perc_pronta].copy()
+            
+            fig_curva_pronta = create_stacked_bar_chart_percent(
+                data=df_percentual_curva_pronta,
+                x_col='mes_nome',
+                modos_perc=cols_perc_pronta,
+                titulo="Percentual de Curva do Produto (PRONTA_ENTREGA) por Mês",
+                x_label="Mês",
+                cores={}
+            )
+            st.subheader("Gráfico de Percentual de Curva do Produto (PRONTA_ENTREGA) - Por Mês")
+            st.plotly_chart(fig_curva_pronta)
+            st.subheader("Tabela de Percentual de Curva do Produto (PRONTA_ENTREGA)")
+            st.dataframe(df_percentual_curva_pronta.style.format({col: "{:.2f}%" for col in cols_perc_pronta}))
+            
+            # -------------------------------
+            # NOVA análise: CURVA_PRODUTO para CASADA (por Mês)
+            # -------------------------------
+            df_curva_casada = df[df['MODO'] == 'CASADA'].copy()
+            # TRATA VALORES NULOS/VAZIOS EM CURVA_PRODUTO
+            df_curva_casada['CURVA_PRODUTO'] = (
+                df_curva_casada['CURVA_PRODUTO']
+                .fillna('')
+                .str.strip()
+                .replace({'': 'SEM_CURVA'})
+            )
+            
+            df_curva_casada['mes'] = df_curva_casada['CADASTRO'].dt.month
+            df_curva_casada['mes_nome'] = df_curva_casada['mes'].apply(lambda m: calendar.month_name[m])
+            
+            curva_agrupada_casada = df_curva_casada.groupby(['mes_nome', 'CURVA_PRODUTO']).size().reset_index(name='Quantidade')
+            curva_pivot_casada = curva_agrupada_casada.pivot(index='mes_nome', columns='CURVA_PRODUTO', values='Quantidade').fillna(0).reset_index()
+            curva_pivot_casada['TOTAL'] = curva_pivot_casada.drop(columns='mes_nome').sum(axis=1)
+            for col in curva_pivot_casada.columns:
+                if col not in ['mes_nome', 'TOTAL']:
+                    curva_pivot_casada[f'PERC_{col}'] = (curva_pivot_casada[col] / curva_pivot_casada['TOTAL'].replace(0,1)) * 100
+            cols_perc_casada = [col for col in curva_pivot_casada.columns if col.startswith('PERC_')]
+            curva_pivot_casada['mes_nome'] = pd.Categorical(curva_pivot_casada['mes_nome'], categories=meses_ordem, ordered=True)
+            curva_pivot_casada = curva_pivot_casada.sort_values('mes_nome')
+            df_percentual_curva_casada = curva_pivot_casada[['mes_nome'] + cols_perc_casada].copy()
+            
+            fig_curva_casada = create_stacked_bar_chart_percent(
+                data=df_percentual_curva_casada,
+                x_col='mes_nome',
+                modos_perc=cols_perc_casada,
+                titulo="Percentual de Curva do Produto (CASADA) por Mês",
+                x_label="Mês",
+                cores={}
+            )
+            st.subheader("Gráfico de Percentual de Curva do Produto (CASADA) - Por Mês")
+            st.plotly_chart(fig_curva_casada)
+            st.subheader("Tabela de Percentual de Curva do Produto (CASADA)")
+            st.dataframe(df_percentual_curva_casada.style.format({col: "{:.2f}%" for col in cols_perc_casada}))
         
         elif periodo == "Mês":
-            # Calcula a semana do mês (1ª semana, 2ª, etc.)
-            df['semana'] = ((df['CADASTRO'].dt.day - 1) // 7) + 1
 
-            # Agrupa os dados por semana, LOJA e MODO
+            df['semana'] = ((df['CADASTRO'].dt.day - 1) // 7) + 1
             venda_agrupada = df.groupby(['semana', 'LOJA', 'MODO']).size().unstack(fill_value=0).reset_index()
             venda_agrupada = add_total_and_percentages(venda_agrupada, MODOS)
             venda_agrupada = venda_agrupada.sort_values('semana')
-
             colunas_final = ['semana', 'LOJA'] + MODOS + ['TOTAL'] + [f'PERC_{modo}' for modo in MODOS]
             venda_agrupada = venda_agrupada[colunas_final]
-
-            # Gráfico de Área (valores absolutos)
             venda_agrupada_graph = venda_agrupada.groupby('semana', as_index=False)[MODOS].sum()
             venda_agrupada_graph = venda_agrupada_graph.sort_values('semana')
-
+    
             fig_area = create_area_chart(
                 venda_agrupada_graph, 
                 x_col='semana', 
@@ -368,12 +417,10 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
             )
             st.subheader("Gráfico de Área (Valores Absolutos)")
             st.plotly_chart(fig_area)
-
-            # Gráfico de Barras (Percentuais) - colunas PERC_*
+    
             modos_perc = [f'PERC_{modo}' for modo in MODOS]
-            # Média das porcentagens por semana
             df_percentual = venda_agrupada.groupby('semana', as_index=False)[modos_perc].mean()
-
+    
             fig_stack = create_stacked_bar_chart_percent(
                 data=df_percentual,
                 x_col='semana',
@@ -382,43 +429,104 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
                 x_label='Semana',
                 cores=CORES_PERC
             )
-            st.subheader("Gráfico de Barras Empilhadas (Percentuais)")
+            st.subheader("Gráfico de Barras Empilhadas (Percentual de Vendas)")
             st.plotly_chart(fig_stack)
-
-            
-            # # Tabela com Vendas e Percentuais
-            st.text("Tabela com Vendas e Percentuais")
+    
             st.subheader("Tabela com Vendas e Percentuais")
             st.dataframe(venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
-            
-            # Tabela com Totais ------------------------------
+    
             df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
             for modo in MODOS:
                 df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
             df_totals.insert(0, 'periodo_data', periodo_data_str)
             st.subheader("Tabela com Totais do Período")
             st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            
+            # -------------------------------
+            # NOVA análise: CURVA_PRODUTO para PRONTA_ENTREGA (por Semana)
+            # -------------------------------
+            df_curva_pronta = df[df['MODO'] == 'PRONTA_ENTREGA'].copy()
+            df_curva_pronta['CURVA_PRODUTO'] = (
+                df_curva_pronta['CURVA_PRODUTO']
+                .fillna('')
+                .str.strip()
+                .replace({'': 'SEM_CURVA'})
+            )
+            
+            df_curva_pronta['semana'] = ((df_curva_pronta['CADASTRO'].dt.day - 1) // 7) + 1
+            curva_agrupada_pronta = df_curva_pronta.groupby(['semana', 'CURVA_PRODUTO']).size().reset_index(name='Quantidade')
+            curva_pivot_pronta = curva_agrupada_pronta.pivot(index='semana', columns='CURVA_PRODUTO', values='Quantidade').fillna(0).reset_index()
+            curva_pivot_pronta['TOTAL'] = curva_pivot_pronta.drop(columns='semana').sum(axis=1)
+            for col in curva_pivot_pronta.columns:
+                if col not in ['semana', 'TOTAL']:
+                    curva_pivot_pronta[f'PERC_{col}'] = (curva_pivot_pronta[col] / curva_pivot_pronta['TOTAL'].replace(0,1)) * 100
+            cols_perc_pronta = [col for col in curva_pivot_pronta.columns if col.startswith('PERC_')]
+            df_percentual_curva_pronta = curva_pivot_pronta[['semana'] + cols_perc_pronta].copy()
+            
+            fig_curva_pronta = create_stacked_bar_chart_percent(
+                data=df_percentual_curva_pronta,
+                x_col='semana',
+                modos_perc=cols_perc_pronta,
+                titulo="Percentual de Curva do Produto (PRONTA_ENTREGA) por Semana",
+                x_label="Semana",
+                cores={}
+            )
+            st.subheader("Gráfico de Percentual de Curva do Produto (PRONTA_ENTREGA) - Por Semana")
+            st.plotly_chart(fig_curva_pronta)
+            st.subheader("Tabela de Percentual de Curva do Produto (PRONTA_ENTREGA)")
+            st.dataframe(df_percentual_curva_pronta.style.format({col: "{:.2f}%" for col in cols_perc_pronta}))
+            
+            # -------------------------------
+            # NOVA análise: CURVA_PRODUTO para CASADA (por Semana)
+            # -------------------------------
+            df_curva_casada = df[df['MODO'] == 'CASADA'].copy()
+            df_curva_casada['CURVA_PRODUTO'] = (
+                df_curva_casada['CURVA_PRODUTO']
+                .fillna('')
+                .str.strip()
+                .replace({'': 'SEM_CURVA'})
+            )
+            
+            df_curva_casada['semana'] = ((df_curva_casada['CADASTRO'].dt.day - 1) // 7) + 1
+            curva_agrupada_casada = df_curva_casada.groupby(['semana', 'CURVA_PRODUTO']).size().reset_index(name='Quantidade')
+            curva_pivot_casada = curva_agrupada_casada.pivot(index='semana', columns='CURVA_PRODUTO', values='Quantidade').fillna(0).reset_index()
+            curva_pivot_casada['TOTAL'] = curva_pivot_casada.drop(columns='semana').sum(axis=1)
+            for col in curva_pivot_casada.columns:
+                if col not in ['semana', 'TOTAL']:
+                    curva_pivot_casada[f'PERC_{col}'] = (curva_pivot_casada[col] / curva_pivot_casada['TOTAL'].replace(0,1)) * 100
+            cols_perc_casada = [col for col in curva_pivot_casada.columns if col.startswith('PERC_')]
+            df_percentual_curva_casada = curva_pivot_casada[['semana'] + cols_perc_casada].copy()
+            
+            fig_curva_casada = create_stacked_bar_chart_percent(
+                data=df_percentual_curva_casada,
+                x_col='semana',
+                modos_perc=cols_perc_casada,
+                titulo="Percentual de Curva do Produto (CASADA) por Semana",
+                x_label="Semana",
+                cores={}
+            )
+            st.subheader("Gráfico de Percentual de Curva do Produto (CASADA) - Por Semana")
+            st.plotly_chart(fig_curva_casada)
+            st.subheader("Tabela de Percentual de Curva do Produto (CASADA)")
+            st.dataframe(df_percentual_curva_casada.style.format({col: "{:.2f}%" for col in cols_perc_casada}))
         
         elif periodo == "Selecione data":
+            
             df['semana_period'] = df['CADASTRO'].dt.to_period('W')
             df['semana'] = df['semana_period'].apply(lambda r: r.start_time)
-            
             df['semana_ano'] = df['CADASTRO'].dt.isocalendar().year
             df['semana_num'] = df['CADASTRO'].dt.isocalendar().week
             df['semana_label'] = df['semana'].dt.strftime('%d/%m/%Y')
-            
             venda_agrupada = df.groupby(
                 ['semana', 'semana_ano', 'semana_num', 'semana_label', 'LOJA', 'MODO']
             ).size().unstack(fill_value=0).reset_index()
             venda_agrupada = add_total_and_percentages(venda_agrupada, MODOS)
             venda_agrupada = venda_agrupada.sort_values('semana')
-            
             colunas_final = ['semana', 'semana_ano', 'semana_num', 'semana_label', 'LOJA'] \
                             + MODOS + ['TOTAL'] \
                             + [f'PERC_{modo}' for modo in MODOS]
             venda_agrupada = venda_agrupada[colunas_final]
             
-            # Gráfico de Área (valores absolutos)
             venda_agrupada_graph = venda_agrupada.groupby(
                 ['semana', 'semana_ano', 'semana_num', 'semana_label'],
                 as_index=False
@@ -436,7 +544,6 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
             st.subheader("Gráfico de Área (Valores Absolutos)")
             st.plotly_chart(fig_area)
             
-            # Gráfico de Barras (Percentuais) - colunas PERC_*
             modos_perc = [f'PERC_{modo}' for modo in MODOS]
             df_percentual = venda_agrupada.groupby('semana_label', as_index=False)[modos_perc].mean()
             
@@ -448,21 +555,78 @@ def gerar_grafico(df, titulo, data_inicio, data_fim, periodo):
                 x_label='Semana',
                 cores=CORES_PERC
             )
-            st.subheader("Gráfico de Barras Empilhadas (Percentuais)")
+            st.subheader("Gráfico de Barras Empilhadas (Percentual de Vendas)")
             st.plotly_chart(fig_stack)
             
-            # # Tabelas
-            # df_totals = venda_agrupada.groupby('LOJA', as_index=False)[MODOS + ['TOTAL']].sum()
-            # for modo in MODOS:
-            #     df_totals[f'PERC_{modo}'] = (df_totals[modo] / df_totals['TOTAL'].replace(0, 1)) * 100
-            # df_totals.insert(0, 'periodo_data', periodo_data_str)
-            # st.subheader("Tabela com Totais do Período")
-            # st.dataframe(df_totals.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS}))
+            # -------------------------------
+            # NOVA análise: CURVA_PRODUTO para PRONTA_ENTREGA (por Data)
+            # -------------------------------
+            df_curva_pronta = df[df['MODO'] == 'PRONTA_ENTREGA'].copy()
+            df_curva_pronta['CURVA_PRODUTO'] = (
+                df_curva_pronta['CURVA_PRODUTO']
+                .fillna('')
+                .str.strip()
+                .replace({'': 'SEM_CURVA'})
+            )
             
-            # st.subheader("Tabela com Vendas e Percentuais")
-            # st.dataframe(
-            #     venda_agrupada.style.format({f'PERC_{modo}': "{:.2f}%" for modo in MODOS})
-            # )
+            df_curva_pronta['data'] = df_curva_pronta['CADASTRO'].dt.date
+            curva_agrupada_pronta = df_curva_pronta.groupby(['data', 'CURVA_PRODUTO']).size().reset_index(name='Quantidade')
+            curva_pivot_pronta = curva_agrupada_pronta.pivot(index='data', columns='CURVA_PRODUTO', values='Quantidade').fillna(0).reset_index()
+            curva_pivot_pronta['TOTAL'] = curva_pivot_pronta.drop(columns='data').sum(axis=1)
+            for col in curva_pivot_pronta.columns:
+                if col not in ['data', 'TOTAL']:
+                    curva_pivot_pronta[f'PERC_{col}'] = (curva_pivot_pronta[col] / curva_pivot_pronta['TOTAL'].replace(0,1)) * 100
+            cols_perc_pronta = [col for col in curva_pivot_pronta.columns if col.startswith('PERC_')]
+            curva_pivot_pronta = curva_pivot_pronta.sort_values('data')
+            df_percentual_curva_pronta = curva_pivot_pronta[['data'] + cols_perc_pronta].copy()
+            
+            fig_curva_pronta = create_stacked_bar_chart_percent(
+                data=df_percentual_curva_pronta,
+                x_col='data',
+                modos_perc=cols_perc_pronta,
+                titulo="Percentual de Curva do Produto (PRONTA_ENTREGA) por Data",
+                x_label="Data",
+                cores={}
+            )
+            st.subheader("Gráfico de Percentual de Curva do Produto (PRONTA_ENTREGA) - Por Data")
+            st.plotly_chart(fig_curva_pronta)
+            st.subheader("Tabela de Percentual de Curva do Produto (PRONTA_ENTREGA)")
+            st.dataframe(df_percentual_curva_pronta.style.format({col: "{:.2f}%" for col in cols_perc_pronta}))
+            
+            # -------------------------------
+            # NOVA análise: CURVA_PRODUTO para CASADA (por Data)
+            # -------------------------------
+            df_curva_casada = df[df['MODO'] == 'CASADA'].copy()
+            df_curva_casada['CURVA_PRODUTO'] = (
+                df_curva_casada['CURVA_PRODUTO']
+                .fillna('')
+                .str.strip()
+                .replace({'': 'SEM_CURVA'})
+            )
+            
+            df_curva_casada['data'] = df_curva_casada['CADASTRO'].dt.date
+            curva_agrupada_casada = df_curva_casada.groupby(['data', 'CURVA_PRODUTO']).size().reset_index(name='Quantidade')
+            curva_pivot_casada = curva_agrupada_casada.pivot(index='data', columns='CURVA_PRODUTO', values='Quantidade').fillna(0).reset_index()
+            curva_pivot_casada['TOTAL'] = curva_pivot_casada.drop(columns='data').sum(axis=1)
+            for col in curva_pivot_casada.columns:
+                if col not in ['data', 'TOTAL']:
+                    curva_pivot_casada[f'PERC_{col}'] = (curva_pivot_casada[col] / curva_pivot_casada['TOTAL'].replace(0,1)) * 100
+            cols_perc_casada = [col for col in curva_pivot_casada.columns if col.startswith('PERC_')]
+            curva_pivot_casada = curva_pivot_casada.sort_values('data')
+            df_percentual_curva_casada = curva_pivot_casada[['data'] + cols_perc_casada].copy()
+            
+            fig_curva_casada = create_stacked_bar_chart_percent(
+                data=df_percentual_curva_casada,
+                x_col='data',
+                modos_perc=cols_perc_casada,
+                titulo="Percentual de Curva do Produto (CASADA) por Data",
+                x_label="Data",
+                cores={}
+            )
+            st.subheader("Gráfico de Percentual de Curva do Produto (CASADA) - Por Data")
+            st.plotly_chart(fig_curva_casada)
+            st.subheader("Tabela de Percentual de Curva do Produto (CASADA)")
+            st.dataframe(df_percentual_curva_casada.style.format({col: "{:.2f}%" for col in cols_perc_casada}))
         
         else:
             st.error("Tipo de período inválido.")
@@ -511,7 +675,7 @@ def main():
         process_visualizacao(engine, data_inicio, data_fim, loja_selecionada, titulo, "Mês")
                 
     elif navegacao == "Selecione data":
-        st.sidebar.write("## Selecione o intervalo de datas para agrupar por semana")
+        st.sidebar.write("### Selecione o intervalo de datas para agrupar por semana")
         data_inicio_input = st.sidebar.date_input("Data Inicial", key="mnavh_semana_data_inicio")
         data_fim_input = st.sidebar.date_input("Data Final", key="mnavh_semana_data_fim")
         
