@@ -1,6 +1,0 @@
-.venv
-.streamlit/secrets.toml
-.vscode/
-poetry.lock
-__pycache__/
-pages/__pycache__
