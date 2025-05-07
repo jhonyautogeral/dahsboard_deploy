@@ -1,0 +1,7 @@
+scp -r C:\Users\jhonatan.novais\Desktop\fzdeploy_dash jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/
+
+
+C:\Users\jhonatan.novais\Desktop\fazer_deploy\dashboard_deploy\dockerfile
+
+docker run -p 9000:9000 deploy_dashboard_ngrok
+
