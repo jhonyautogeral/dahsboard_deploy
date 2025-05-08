@@ -21,8 +21,15 @@ streamlit run app.py
 ## 🐳 Como rodar com Docker
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
+
+```bash
+docker logs
+```
+
+### ✅ Rodar docker logs (id) do container e Acessar o link do site gerado atualmente com ngrok
+
 
 ## 🌐 Variáveis de Ambiente
 

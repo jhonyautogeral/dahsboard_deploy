@@ -1,4 +1,4 @@
-scp -r C:\Users\jhonatan.novais\Desktop\git_projeto_deploy\dahsboard_deploy jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/
+scp -r C:\Users\jhonatan.novais\Desktop\git_projeto_deploy\dashboard_deploy jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/
 
 
 C:\Users\jhonatan.novais\Desktop\fazer_deploy\dashboard_deploy\dockerfile

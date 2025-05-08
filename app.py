@@ -116,7 +116,6 @@ def main():
         login_flow()
     else:
         st.success("Você já está logado!")
-        sleep(1)
         st.switch_page("pages/page1.py")
 
 if __name__ == "__main__":
