@@ -13,8 +13,6 @@ from sqlalchemy import create_engine
 from datetime import datetime
 import calendar
 
-if st.sidebar.button("Voltar"):
-        st.switch_page("app.py")
 
 # st.set_page_config(page_title="Entrega e suas métricas", layout="wide", page_icon="📊")
 

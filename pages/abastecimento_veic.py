@@ -8,6 +8,7 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.switch_page("app.py")
     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
 
+
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
@@ -362,16 +363,14 @@ def generate_weekly_combustible_table(df_mes):
 # =======================
 def main():
     st.set_page_config("Custo combustivel frota", layout="wide")
-    
+    if st.sidebar.button("Voltar"):
+        st.switch_page("app.py")
     # Conexão e seleção da loja
     engine = criar_conexao()
     df_lojas = consultar_lojas(engine)
     loja_dict = dict(zip(df_lojas['codigo'], df_lojas['nome']))
     
     st.sidebar.write("## Selecione os parâmetros")
-    if st.sidebar.button("Voltar"):
-        st.query_params["page"] = "page1.py"  
-        st.rerun()
 
     loja_selecionada = st.sidebar.selectbox(
         "Selecione a loja",

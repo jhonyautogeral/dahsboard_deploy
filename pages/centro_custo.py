@@ -13,10 +13,10 @@ pd.set_option('future.no_silent_downcasting', True)
 # -----------------------
 # Proteção de acesso
 # -----------------------
-# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-#     st.warning("Você não está logado. Redirecionando para a página de login...")
-#     st.switch_page("app.py")
-#     st.stop()
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()
 
 # -----------------------
 # 1. Conexão com Banco de Dados
@@ -133,7 +133,7 @@ def get_cost_data(engine, inicio_str: str, fim_str: str, custo_selecionado: str)
     
     # CUSTO FROTA_REPAROS/CONSERTOS
     elif custo_selecionado.upper() == "CUSTO FROTA_REPAROS/CONSERTOS":
-        from api_custo_manutencao_frota import custo_frota_loja
+        from pages.api_custo_manutencao_frota import custo_frota_loja
         df = custo_frota_loja(inicio_str, fim_str)
         if not df.empty:
             df["VALOR"] = df["VALOR_TOTAL"]
@@ -146,7 +146,7 @@ def get_cost_data(engine, inicio_str: str, fim_str: str, custo_selecionado: str)
     
     # CUSTO MOTOBOY TERCEIRIZADO
     elif custo_selecionado.upper() == "CUSTO MOTOBOY TERCEIRIZADO":
-        from api_custo_motoboy_tercerizado import calc_custo_motobiy_tercerizado
+        from pages.api_custo_motoboy_tercerizado import calc_custo_motobiy_tercerizado
         df = calc_custo_motobiy_tercerizado(inicio_str, fim_str)
         if not df.empty:
             df["VALOR"] = df["VALOR_TOTAL"]
@@ -158,7 +158,7 @@ def get_cost_data(engine, inicio_str: str, fim_str: str, custo_selecionado: str)
         return pd.DataFrame()
     # CUSTO Combustivel
     elif custo_selecionado.upper() == "CUSTO COMBUSTIVEL":
-        from api_custo_combustivel import preparar_dados
+        from pages.api_custo_combustivel import preparar_dados
         df = preparar_dados(inicio_str, fim_str)
         if not df.empty:
             df["VALOR"] = df["VALOR_TOTAL"]
@@ -170,7 +170,7 @@ def get_cost_data(engine, inicio_str: str, fim_str: str, custo_selecionado: str)
         return pd.DataFrame()
     # CUSTO PEDAGIO
     elif custo_selecionado.upper() == "CUSTO PEDAGIO":
-        from api_custo_pedagio import calcula_custo_pedagio
+        from pages.api_custo_pedagio import calcula_custo_pedagio
         df = calcula_custo_pedagio(inicio_str, fim_str)
         if not df.empty:
             df["VALOR"] = df["CUSTO_TOTAL"]
