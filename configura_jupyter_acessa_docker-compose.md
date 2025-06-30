@@ -1,5 +1,5 @@
 ```
-scp -r C:\Users\jhonatan.novais\Desktop\fazer_deploy\deploy_compose jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/
+scp -r C:\Users\jhonatan.novais\Desktop\fazer_deploy\dashboard_deploy jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/
 ```
 
 C:\Users\jhonatan.novais\Desktop\fazer_deploy\dashboard_deploy\dockerfile
@@ -25,7 +25,7 @@ sudo docker rm -f jupyter-deploy-compose
 
 ```bash
 sudo docker run --name jupyter-deploy-compose -p 8888:8888 \
-  -v /home/jonathannovais/Documentos/deploy_compose:/home/jovyan/work:rw \
+  -v /home/jonathannovais/Documentos/dashboard_deploy:/home/jovyan/work:rw \
   --user root \
   jupyter/pyspark-notebook \
   start-notebook.sh \
@@ -80,7 +80,7 @@ sudo docker rm -f jupyter-deploy-compose
 sudo docker run -d \
   --name jupyter-deploy-compose \
   -p 8888:8888 \
-  -v /home/jonathannovais/Documentos/deploy_compose:/home/jovyan/work:rw \
+  -v /home/jonathannovais/Documentos/dashboard_deploy:/home/jovyan/work:rw \
   --user root \
   jupyter/base-notebook \
   start-notebook.sh \
@@ -99,8 +99,8 @@ sudo docker run -d \
 Se desejar manter o container rodando com o usuário **jovyan (UID 1000)**, execute no host:
 
 ```bash
-sudo chown -R 1000:1000 /home/jonathannovais/Documentos/deploy_compose
-sudo chmod -R a+rX /home/jonathannovais/Documentos/deploy_compose
+sudo chown -R 1000:1000 /home/jonathannovais/Documentos/dashboard_deploy
+sudo chmod -R a+rX /home/jonathannovais/Documentos/dashboard_deploy
 ```
 
 Depois reinicie o container sem `--user root`:
@@ -111,7 +111,7 @@ sudo docker rm -f jupyter-deploy-compose
 sudo docker run -d \
   --name jupyter-deploy-compose \
   -p 8888:8888 \
-  -v /home/jonathannovais/Documentos/deploy_compose:/home/jovyan/work \
+  -v /home/jonathannovais/Documentos/dashboard_deploy:/home/jovyan/work \
   jupyter/base-notebook \
   start-notebook.sh \
     --NotebookApp.ip='0.0.0.0' \
@@ -127,7 +127,7 @@ sudo docker run -d \
 Acrescente `:Z` ou `:z` ao volume:
 
 ```bash
--v /home/jonathannovais/Documentos/deploy_compose:/home/jovyan/work:Z
+-v /home/jonathannovais/Documentos/dashboard_deploy:/home/jovyan/work:Z
 ```
 
 > Isso ajusta o contexto SELinux para permitir leitura do diretório pelo container.
@@ -136,4 +136,4 @@ Acrescente `:Z` ou `:z` ao volume:
 
 ## ✅ Resultado esperado
 
-Se configurado corretamente, os arquivos do diretório local `deploy_compose` devem aparecer na interface web do Jupyter Notebook acessível via `http://<IP>:8888`.
+Se configurado corretamente, os arquivos do diretório local `dashboard_deploy` devem aparecer na interface web do Jupyter Notebook acessível via `http://<IP>:8888`.
