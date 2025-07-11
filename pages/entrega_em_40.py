@@ -203,9 +203,9 @@ def main():
     
     engine = criar_conexao()
     
+
     if st.sidebar.button("Voltar"):
-        st.experimental_set_query_params(page="page1.py")
-        st.experimental_rerun()
+            st.switch_page("app.py")
     
     st.sidebar.write("## Selecione os parâmetros")
     # Navegação por barra
