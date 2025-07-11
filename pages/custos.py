@@ -5,8 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-if st.sidebar.button("Voltar"):
-        st.switch_page("app.py")
 
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
@@ -144,6 +142,9 @@ def main():
     st.set_page_config(page_title="Análise de Custos Totais", layout="wide")
     st.title("💰 Análise de Custos Totais por Loja")
     
+    if st.sidebar.button("Voltar"):
+        st.switch_page("app.py")
+        
     # Sidebar para filtros
     st.sidebar.header("🔍 Filtros")
     

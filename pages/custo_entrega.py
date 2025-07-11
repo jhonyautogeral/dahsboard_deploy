@@ -6,6 +6,8 @@ from datetime import datetime, date, timedelta
 from sqlalchemy import create_engine
 import calendar
 
+st.set_page_config(page_title="Sistema de Custo de Entrega", layout="wide")
+
 if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
 
@@ -266,7 +268,7 @@ def configurar_periodo():
 # -----------------------
 def main():
     """Função principal"""
-    st.set_page_config(page_title="Sistema de Custo de Entrega", layout="wide")
+    
     st.title("📊 Sistema de Custo de Entrega - Frota")
     
     # Sidebar
