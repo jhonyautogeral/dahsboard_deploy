@@ -15,8 +15,6 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.switch_page("app.py")
     st.stop()
 
-if st.sidebar.button("Voltar"):
-        st.switch_page("app.py")
 # -----------------------
 # 1. Conexão com Banco
 # -----------------------
@@ -208,8 +206,8 @@ def main():
     if st.sidebar.button("Voltar"):
         st.experimental_set_query_params(page="page1.py")
         st.experimental_rerun()
-    st.sidebar.write("## Selecione os parâmetros")
     
+    st.sidebar.write("## Selecione os parâmetros")
     # Navegação por barra
     navegacao = st.sidebar.radio("Navegação", options=["Ano", "selecione data"], key="bar_navegacao")
     

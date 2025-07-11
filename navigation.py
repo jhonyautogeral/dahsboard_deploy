@@ -15,9 +15,6 @@ class AccessControl:
         "modo_vendas_sem_curva.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "mapa_calor.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "entrega_em_40.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "entrega_e_rota.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio"],
-        "02margens.py": ["Gestor", "VENDAS", "Contas_pagar", "Compras", "Sócio", "Estagiário de TI"],
-        "manutencao_custo_frota.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
         "abastecimento_veic.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"]
     }
     
@@ -27,13 +24,11 @@ class AccessControl:
         {"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
         {"file": "mapa_calor.py", "label": "Mapa de Calor", "permitir": PERMISSIONS.get("mapa_calor.py")},
-        {"file": "02margens.py", "label": "02Magens", "permitir": PERMISSIONS.get("02margens.py")},
         {"file": "modo_venda_itens_curva.py", "label": "Vendas intens e curva", "permitir": PERMISSIONS.get("modo_venda_itens_curva.py")},
         {"file": "modo_vendas_sem_curva.py", "label": "Vendas sem curva", "permitir": PERMISSIONS.get("modo_vendas_sem_curva.py")},
         {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
-        {"file": "entrega_e_rota.py", "label": "Entrega e rota", "permitir": PERMISSIONS.get("entrega_e_rota.py")},
         {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("abastecimento_veic.py")},
-        {"file": "manutencao_custo_frota.py", "label": "Manutenção Custo Frota", "permitir": PERMISSIONS.get("manutencao_custo_frota.py")},
+       
     ]
     
     @classmethod
