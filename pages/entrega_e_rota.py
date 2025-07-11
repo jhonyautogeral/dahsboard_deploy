@@ -15,9 +15,10 @@ import plotly.graph_objects as go
 from sqlalchemy.exc import SQLAlchemyError
 import seaborn as sns
 
+st.set_page_config(page_title="Entrega e suas métricas", layout="wide")
+
 if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
-st.set_page_config(page_title="Entrega e suas métricas", layout="wide")
 
 # Função para criar conexão com o banco de dados
 def criar_conexao():

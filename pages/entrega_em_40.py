@@ -205,10 +205,10 @@ def main():
     
     engine = criar_conexao()
     
-    st.sidebar.write("## Selecione os parâmetros")
     if st.sidebar.button("Voltar"):
         st.experimental_set_query_params(page="page1.py")
         st.experimental_rerun()
+    st.sidebar.write("## Selecione os parâmetros")
     
     # Navegação por barra
     navegacao = st.sidebar.radio("Navegação", options=["Ano", "selecione data"], key="bar_navegacao")

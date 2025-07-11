@@ -10,12 +10,14 @@ from sqlalchemy import create_engine , text
 from datetime import datetime
 import re
 
-if st.sidebar.button("Voltar"):
-        st.switch_page("app.py")
-        
+      
 # Título e configuração da página
 titulo = 'Custo manutencao frota'
 st.set_page_config(page_title=titulo, layout="wide")
+
+if st.sidebar.button("Voltar"):
+        st.switch_page("app.py")
+        
 st.title(titulo)
 
 # Selecionar período no Streamlit
