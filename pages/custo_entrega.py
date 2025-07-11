@@ -6,12 +6,15 @@ from datetime import datetime, date, timedelta
 from sqlalchemy import create_engine
 import calendar
 
+if st.sidebar.button("Voltar"):
+        st.switch_page("app.py")
+
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
     st.stop()  # Interrompe a execução para evitar continuar carregando esta página
-    
+
 # Configuração
 pd.set_option('future.no_silent_downcasting', True)
 
