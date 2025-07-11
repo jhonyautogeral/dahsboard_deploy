@@ -305,9 +305,9 @@ def main():
     
     engine = criar_conexao()
     
-    st.sidebar.write("## Selecione os parâmetros")
     if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
+    st.sidebar.write("## Selecione os parâmetros")
     
     # Define a ordem das lojas com base no código numérico
     ordered_lojas = [LOJA_DICT[k] for k in sorted(LOJA_DICT.keys())]
