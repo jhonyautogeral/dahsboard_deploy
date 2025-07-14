@@ -13,7 +13,11 @@ import calendar
 # Configuração da página
 st.set_page_config(page_title="Análise de Performance Logística", layout="wide", page_icon="📊")
 
-
+# Proteção de acesso
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()
 
 # Configurações globais
 dias_semana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
