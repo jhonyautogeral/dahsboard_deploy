@@ -5,12 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-# Proteção de acesso
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    st.warning("Você não está logado. Redirecionando para a página de login...")
-    st.switch_page("app.py")
-    st.stop()
-
 def criar_conexao():
     """Cria conexão com MySQL"""
     config = st.secrets["connections"]["mysql"]
@@ -154,9 +148,6 @@ def main():
     st.set_page_config(page_title="Análise de Custos Totais", layout="wide")
     st.title("💰 Análise de Custos Totais por Loja")
     
-    if st.sidebar.button("Voltar"):
-        st.switch_page("app.py")
-
     # Sidebar para filtros
     st.sidebar.header("🔍 Filtros")
     
@@ -315,7 +306,25 @@ def main():
         
         with tab4:
             st.subheader("Custo Total por Loja, Mês e Placa")
-            st.dataframe(dados['por_loja_mes_placa'], use_container_width=True)
+            
+            # Filtro de busca por placa
+            filtro_placa_resumo = st.text_input(
+                "🔍 Filtrar por Placa no Resumo",
+                value="",
+                placeholder="Digite parte da placa (ex: ABC, 1234)",
+                help="Busca por partes da placa - não precisa ser exata",
+                key="filtro_placa_resumo"
+            )
+            
+            # Aplicar filtro na tabela resumo
+            df_resumo_filtrado = dados['por_loja_mes_placa'].copy()
+            if filtro_placa_resumo:
+                df_resumo_filtrado = df_resumo_filtrado[
+                    df_resumo_filtrado['PLACA'].str.contains(filtro_placa_resumo, case=False, na=False)
+                ]
+                st.info(f"📊 Mostrando {len(df_resumo_filtrado)} registros filtrados por placa: '{filtro_placa_resumo}'")
+            
+            st.dataframe(df_resumo_filtrado, use_container_width=True)
         
         # Análises Específicas
         st.header("📊 Análises Específicas")
@@ -365,12 +374,12 @@ def main():
         
         # Download
         st.header("💾 Download dos Dados")
-        csv = dados['original'].to_csv(index=False)
+        excel = dados['original'].to_excel(index=False)
         st.download_button(
-            label="📥 Baixar dados em CSV",
-            data=csv,
-            file_name=f"custos_totais_{data_inicio}_{data_fim}.csv",
-            mime="text/csv"
+            label="📥 Baixar dados em Excel",
+            data=excel,
+            file_name=f"custos_totais_{data_inicio}_{data_fim}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
 if __name__ == "__main__":
