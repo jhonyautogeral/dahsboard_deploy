@@ -29,7 +29,7 @@ class AccessControl:
         {"file": "modo_vendas_sem_curva.py", "label": "Vendas sem curva", "permitir": PERMISSIONS.get("modo_vendas_sem_curva.py")},
         {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
         {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("abastecimento_veic.py")},
-        {"file": "entrega_logistica.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("entrega_logistica.py")},
+        {"file": "entrega_logistica.py", "label": "Entrega Logística", "permitir": PERMISSIONS.get("entrega_logistica.py")},
 
     ]
     
