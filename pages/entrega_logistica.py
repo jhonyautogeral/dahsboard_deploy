@@ -340,6 +340,8 @@ def analise_entregas_40km(df):
 def main():
     st.title("📊 Análise de Performance Logística")
     
+    if st.sidebar.button("Voltar"):
+        st.switch_page("app.py")
     # Criar conexão
     engine = criar_conexao()
     
