@@ -148,6 +148,9 @@ def main():
     st.set_page_config(page_title="Análise de Custos Totais", layout="wide")
     st.title("💰 Análise de Custos Totais por Loja")
     
+    if st.sidebar.button("Voltar"):
+            st.switch_page("app.py")
+
     # Sidebar para filtros
     st.sidebar.header("🔍 Filtros")
     
