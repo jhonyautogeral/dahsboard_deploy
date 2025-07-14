@@ -5,13 +5,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-
-# Proteção de acesso
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    st.warning("Você não está logado. Redirecionando para a página de login...")
-    st.switch_page("app.py")
-    st.stop()  # Interrompe a execução para evitar continuar carregando esta página
-
 def criar_conexao():
     """Cria conexão com MySQL"""
     config = st.secrets["connections"]["mysql"]
@@ -32,7 +25,7 @@ def obter_lojas_disponiveis(engine):
     return result['COMP_LOJA'].tolist()
 
 def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=None, descricoes_selecionadas=None):
-    """Consulta custos totais entre datas com filtros"""
+    """Consulta custos totais entre datas com filtros - SEM DUPLICATAS"""
     where_conditions = [f"a.CADASTRO BETWEEN '{data_inicio}' AND '{data_fim}'"]
     
     if lojas_selecionadas:
@@ -44,18 +37,22 @@ def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=Non
         where_conditions.append(f"c.DSCR IN ('{descricoes_str}')")
     
     query = f"""
-    SELECT
+    SELECT DISTINCT
         c.COMP_LOJA AS LOJA,
         c.COMP_CODI AS COMPRA,
         c.CADA_ATIV_ID AS CADASTRO_VEICULO,
+        cv.PLACA,
         c.VALR_RATE AS VALOR_UNITARIO_CUSTO,
         (c.VALR_RATE / a.VALOR_TOTAL_NOTA) AS PERC,
         c.DSCR AS DESCRICAO,
         a.CADASTRO,
         a.VALOR_TOTAL_NOTA
-    FROM comp_rate_ativ c
-    LEFT JOIN compras_dbf a ON c.COMP_CODI = a.COMPRA
-    AND c.COMP_LOJA = a.LOJA
+    FROM
+        comp_rate_ativ c
+    LEFT JOIN compras_dbf a ON
+        c.COMP_CODI = a.COMPRA AND c.COMP_LOJA = a.LOJA
+    LEFT JOIN cadastros_ativos ca ON c.CADA_ATIV_ID = ca.CADA_ATIV_ID 
+    LEFT JOIN cadastros_veiculos cv on ca.CADA_VEIC_ID = cv.CADA_VEIC_ID
     WHERE {' AND '.join(where_conditions)}
     ORDER BY a.CADASTRO, c.COMP_LOJA
     """
@@ -68,6 +65,9 @@ def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descr
     
     if df.empty:
         return None
+    
+    # FILTRO ADICIONAL: Remove duplicatas no DataFrame
+    df = df.drop_duplicates(subset=['LOJA', 'CADASTRO', 'VALOR_UNITARIO_CUSTO'])
     
     # Converter data
     df['CADASTRO'] = pd.to_datetime(df['CADASTRO'])
@@ -99,6 +99,11 @@ def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descr
     resumo_ativ = df.groupby('CADASTRO_VEICULO')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index()
     resumo_ativ.columns = ['ATIV_ID', 'TOTAL', 'MEDIA', 'QUANTIDADE']
     
+    # Resumo por LOJA, MES e PLACA
+    resumo_loja_mes_placa = df.groupby(['LOJA', 'MES_ANO', 'PLACA'])['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'median', 'count']).reset_index()
+    resumo_loja_mes_placa['MES_ANO'] = resumo_loja_mes_placa['MES_ANO'].astype(str)
+    resumo_loja_mes_placa.columns = ['LOJA', 'MES', 'PLACA', 'TOTAL', 'MEDIA', 'MEDIANA', 'QUANTIDADE']
+    
     return {
         'original': df,
         'agrupado': resumo_agrupado,
@@ -106,7 +111,8 @@ def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descr
         'por_dia': resumo_tempo,
         'por_mes': resumo_mensal,
         'por_desc': resumo_desc,
-        'por_ativ': resumo_ativ
+        'por_ativ': resumo_ativ,
+        'por_loja_mes_placa': resumo_loja_mes_placa
     }
 
 def gerar_grafico_custos(dados, tipo_grafico, tipo_analise):
@@ -142,9 +148,6 @@ def main():
     st.set_page_config(page_title="Análise de Custos Totais", layout="wide")
     st.title("💰 Análise de Custos Totais por Loja")
     
-    if st.sidebar.button("Voltar"):
-        st.switch_page("app.py")
-        
     # Sidebar para filtros
     st.sidebar.header("🔍 Filtros")
     
@@ -197,132 +200,152 @@ def main():
         help="Escolha o tipo de visualização"
     )
     
-    # Botão para consultar
-    if st.sidebar.button("💰 Consultar Custos", type="primary"):
-        with st.spinner("Carregando dados de custos..."):
-            dados = processar_dados_custos(
-                data_inicio.strftime('%Y-%m-%d'), 
-                data_fim.strftime('%Y-%m-%d'),
-                lojas_selecionadas if lojas_selecionadas else None,
-                descricoes_selecionadas if descricoes_selecionadas else None
-            )
-            
-            if dados is None:
-                st.error("❌ Nenhum dado encontrado para o período selecionado.")
-                return
-            
-            # Métricas principais
-            st.header("📈 Resumo Geral")
-            col1, col2, col3, col4 = st.columns(4)
-            
-            total_geral = dados['original']['VALOR_UNITARIO_CUSTO'].sum()
-            media_geral = dados['original']['VALOR_UNITARIO_CUSTO'].mean()
-            total_registros = len(dados['original'])
-            lojas_ativas = dados['original']['LOJA'].nunique()
-            
-            with col1:
-                st.metric("Total Geral", f"R$ {total_geral:,.2f}")
-            with col2:
-                st.metric("Média", f"R$ {media_geral:,.2f}")
-            with col3:
-                st.metric("Registros", f"{total_registros:,}")
-            with col4:
-                st.metric("Lojas Ativas", lojas_ativas)
-            
-            # Dados Detalhados
-            st.header("📋 Dados Detalhados")
-            st.dataframe(dados['original'].head(100), use_container_width=True)
-            
-            # Análise Visual Principal
-            st.header("📊 Análise Visual Principal")
-            fig_principal = gerar_grafico_custos(dados, tipo_grafico, tipo_analise)
-            st.plotly_chart(fig_principal, use_container_width=True)
-            
-            # Gráficos complementares
-            st.header("📊 Análises Complementares")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("Distribuição por Loja")
-                st.bar_chart(dados['por_loja'].set_index('LOJA')['TOTAL'])
-            
-            with col2:
-                st.subheader("Evolução Temporal")
-                st.line_chart(dados['por_dia'].set_index('DATA')['TOTAL'])
-            
-            # Resumos Detalhados
-            st.header("📋 Resumos Detalhados")
-            
-            tab1, tab2, tab3 = st.tabs(["Por Loja", "Por Descrição", "Por Atividade"])
-            
-            with tab1:
-                st.dataframe(dados['por_loja'], use_container_width=True)
-            
-            with tab2:
-                st.dataframe(dados['por_desc'], use_container_width=True)
-            
-            with tab3:
-                st.dataframe(dados['por_ativ'].head(20), use_container_width=True)
-            
-            # Análises Específicas
-            st.header("📊 Análises Específicas")
-            
-            # Custo por Loja ao Longo do Tempo
-            st.subheader("Custo por Loja ao Longo do Tempo")
-            df_heatmap = dados['original'].groupby(['LOJA', 'DATA'])['VALOR_UNITARIO_CUSTO'].sum().reset_index()
-            fig_heatmap = px.density_heatmap(df_heatmap, x='DATA', y='LOJA', z='VALOR_UNITARIO_CUSTO',
-                                           title='Heatmap de Custos por Loja e Data',
-                                           labels={'VALOR_UNITARIO_CUSTO': 'Custo Total (R$)'})
-            st.plotly_chart(fig_heatmap, use_container_width=True)
-            
-            # Média de Custo por Loja
-            st.subheader("Média de Custo por Loja")
-            # Calcula a mediana da soma de VALOR_UNITARIO_CUSTO por loja
-            soma_por_loja = dados['original'].groupby('LOJA')['VALOR_UNITARIO_CUSTO'].sum()
-            mediana_custo = soma_por_loja.median()
-            
-            # Para visualização, mostra a soma por loja com linha da mediana
-            soma_loja_df = soma_por_loja.reset_index()
-            soma_loja_df.columns = ['LOJA', 'CUSTO_TOTAL']
-            
-            fig_media = px.bar(soma_loja_df, x='LOJA', y='CUSTO_TOTAL',
-                             title=f'Custo Total por Loja (Mediana: R$ {mediana_custo:,.2f})',
-                             labels={'CUSTO_TOTAL': 'Custo Total (R$)'})
-            
-            # Adiciona linha da mediana
-            fig_media.add_hline(y=mediana_custo, line_dash="dash", line_color="red",
-                              annotation_text=f"Mediana: R$ {mediana_custo:,.2f}")
-            
-            st.plotly_chart(fig_media, use_container_width=True)
-            
-            # Insights automáticos
-            st.header("💡 Insights Automáticos")
-            
-            loja_maior = dados['por_loja'].loc[dados['por_loja']['TOTAL'].idxmax()]
-            dia_maior = dados['por_dia'].loc[dados['por_dia']['TOTAL'].idxmax()]
-            desc_maior = dados['por_desc'].loc[dados['por_desc']['TOTAL'].idxmax()]
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.info(f"🏆 **Loja top**: {loja_maior['LOJA']}\nR$ {loja_maior['TOTAL']:,.2f}")
-            
-            with col2:
-                st.info(f"📅 **Dia top**: {dia_maior['DATA']}\nR$ {dia_maior['TOTAL']:,.2f}")
-            
-            with col3:
-                st.info(f"💰 **Descrição top**: {desc_maior['DESCRICAO'][:20]}...\nR$ {desc_maior['TOTAL']:,.2f}")
-            
-            # Download
-            st.header("💾 Download dos Dados")
-            csv = dados['original'].to_csv(index=False)
-            st.download_button(
-                label="📥 Baixar dados em CSV",
-                data=csv,
-                file_name=f"custos_totais_{data_inicio}_{data_fim}.csv",
-                mime="text/csv"
-            )
+    # Consulta automática
+    with st.spinner("Carregando dados de custos..."):
+        dados = processar_dados_custos(
+            data_inicio.strftime('%Y-%m-%d'), 
+            data_fim.strftime('%Y-%m-%d'),
+            lojas_selecionadas if lojas_selecionadas else None,
+            descricoes_selecionadas if descricoes_selecionadas else None
+        )
+        
+        if dados is None:
+            st.error("❌ Nenhum dado encontrado para o período selecionado.")
+            return
+        
+        # Métricas principais
+        st.header("📈 Resumo Geral")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_geral = dados['original']['VALOR_UNITARIO_CUSTO'].sum()
+        media_geral = dados['original']['VALOR_UNITARIO_CUSTO'].mean()
+        total_registros = len(dados['original'])
+        lojas_ativas = dados['original']['LOJA'].nunique()
+        
+        with col1:
+            st.metric("Total Geral", f"R$ {total_geral:,.2f}")
+        with col2:
+            st.metric("Média", f"R$ {media_geral:,.2f}")
+        with col3:
+            st.metric("Registros", f"{total_registros:,}")
+        with col4:
+            st.metric("Lojas Ativas", lojas_ativas)
+        
+        # Dados Detalhados com filtro de placa
+        st.header("📋 Dados Detalhados")
+        
+        # Filtro de placa
+        filtro_placa = st.text_input(
+            "🔍 Filtrar por Placa",
+            value="",
+            placeholder="Digite parte da placa (ex: ABC, 1234)",
+            help="Busca por partes da placa - não precisa ser exata"
+        )
+        
+        # Aplicar filtro de placa
+        df_filtrado = dados['original'].copy()
+        if filtro_placa:
+            df_filtrado = df_filtrado[
+                df_filtrado['PLACA'].str.contains(filtro_placa, case=False, na=False)
+            ]
+        
+        # Mostrar informações do filtro
+        if filtro_placa:
+            st.info(f"📊 Mostrando {len(df_filtrado)} registros filtrados por placa: '{filtro_placa}'")
+        
+        st.dataframe(df_filtrado.head(100), use_container_width=True)
+        
+        # Análise Visual Principal
+        st.header("📊 Análise Visual Principal")
+        fig_principal = gerar_grafico_custos(dados, tipo_grafico, tipo_analise)
+        st.plotly_chart(fig_principal, use_container_width=True)
+        
+        # Gráficos complementares
+        st.header("📊 Análises Complementares")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Distribuição por Loja")
+            st.bar_chart(dados['por_loja'].set_index('LOJA')['TOTAL'])
+        
+        with col2:
+            st.subheader("Evolução Temporal")
+            st.line_chart(dados['por_dia'].set_index('DATA')['TOTAL'])
+        
+        # Resumos Detalhados
+        st.header("📋 Resumos Detalhados")
+        
+        tab1, tab2, tab3, tab4 = st.tabs(["Por Loja", "Por Descrição", "Por Atividade", "Loja-Mês-Placa"])
+        
+        with tab1:
+            st.dataframe(dados['por_loja'], use_container_width=True)
+        
+        with tab2:
+            st.dataframe(dados['por_desc'], use_container_width=True)
+        
+        with tab3:
+            st.dataframe(dados['por_ativ'].head(20), use_container_width=True)
+        
+        with tab4:
+            st.subheader("Custo Total por Loja, Mês e Placa")
+            st.dataframe(dados['por_loja_mes_placa'], use_container_width=True)
+        
+        # Análises Específicas
+        st.header("📊 Análises Específicas")
+        
+        # Custo por Loja ao Longo do Tempo
+        st.subheader("Custo por Loja ao Longo do Tempo")
+        df_heatmap = dados['original'].groupby(['LOJA', 'DATA'])['VALOR_UNITARIO_CUSTO'].sum().reset_index()
+        fig_heatmap = px.density_heatmap(df_heatmap, x='DATA', y='LOJA', z='VALOR_UNITARIO_CUSTO',
+                                        title='Heatmap de Custos por Loja e Data',
+                                        labels={'VALOR_UNITARIO_CUSTO': 'Custo Total (R$)'})
+        st.plotly_chart(fig_heatmap, use_container_width=True)
+        
+        # Média de Custo por Loja
+        st.subheader("Média de Custo por Loja")
+        soma_por_loja = dados['original'].groupby('LOJA')['VALOR_UNITARIO_CUSTO'].sum()
+        mediana_custo = soma_por_loja.median()
+        
+        soma_loja_df = soma_por_loja.reset_index()
+        soma_loja_df.columns = ['LOJA', 'CUSTO_TOTAL']
+        
+        fig_media = px.bar(soma_loja_df, x='LOJA', y='CUSTO_TOTAL',
+                            title=f'Custo Total por Loja (Mediana: R$ {mediana_custo:,.2f})',
+                            labels={'CUSTO_TOTAL': 'Custo Total (R$)'})
+        
+        fig_media.add_hline(y=mediana_custo, line_dash="dash", line_color="red",
+                            annotation_text=f"Mediana: R$ {mediana_custo:,.2f}")
+        
+        st.plotly_chart(fig_media, use_container_width=True)
+        
+        # Insights automáticos
+        st.header("💡 Insights Automáticos")
+        
+        loja_maior = dados['por_loja'].loc[dados['por_loja']['TOTAL'].idxmax()]
+        dia_maior = dados['por_dia'].loc[dados['por_dia']['TOTAL'].idxmax()]
+        desc_maior = dados['por_desc'].loc[dados['por_desc']['TOTAL'].idxmax()]
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.info(f"🏆 **Loja top**: {loja_maior['LOJA']}\nR$ {loja_maior['TOTAL']:,.2f}")
+
+        with col2:
+            st.info(f"📅 **Dia top**: {dia_maior['DATA']}\nR$ {dia_maior['TOTAL']:,.2f}")
+        
+        with col3:
+            st.info(f"💰 **Descrição top**: {desc_maior['DESCRICAO'][:20]}...\nR$ {desc_maior['TOTAL']:,.2f}")
+        
+        # Download
+        st.header("💾 Download dos Dados")
+        csv = dados['original'].to_csv(index=False)
+        st.download_button(
+            label="📥 Baixar dados em CSV",
+            data=csv,
+            file_name=f"custos_totais_{data_inicio}_{data_fim}.csv",
+            mime="text/csv"
+        )
 
 if __name__ == "__main__":
     main()
