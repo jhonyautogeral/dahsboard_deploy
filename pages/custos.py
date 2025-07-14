@@ -5,6 +5,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
+# Proteção de acesso
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()
+
 def criar_conexao():
     """Cria conexão com MySQL"""
     config = st.secrets["connections"]["mysql"]
@@ -149,7 +155,7 @@ def main():
     st.title("💰 Análise de Custos Totais por Loja")
     
     if st.sidebar.button("Voltar"):
-            st.switch_page("app.py")
+        st.switch_page("app.py")
 
     # Sidebar para filtros
     st.sidebar.header("🔍 Filtros")
@@ -266,15 +272,32 @@ def main():
         # Gráficos complementares
         st.header("📊 Análises Complementares")
         
-        col1, col2 = st.columns(2)
+        # Gráfico de barras: Mês x Loja com valores totais por veículo
+        st.subheader("Custo Total por Veículo - Mês x Loja")
         
-        with col1:
-            st.subheader("Distribuição por Loja")
-            st.bar_chart(dados['por_loja'].set_index('LOJA')['TOTAL'])
+        # Agrupa por mês, loja e calcula soma dos custos por veículo
+        df_mes_loja = dados['original'].groupby(['MES_ANO', 'LOJA'])['VALOR_UNITARIO_CUSTO'].sum().reset_index()
+        df_mes_loja['MES_ANO'] = df_mes_loja['MES_ANO'].astype(str)
         
-        with col2:
-            st.subheader("Evolução Temporal")
-            st.line_chart(dados['por_dia'].set_index('DATA')['TOTAL'])
+        # Calcula mediana para linha de referência
+        mediana_mes_loja = df_mes_loja['VALOR_UNITARIO_CUSTO'].median()
+        
+        # Cria gráfico de barras
+        fig_mes_loja = px.bar(df_mes_loja, 
+                             x='LOJA', 
+                             y='VALOR_UNITARIO_CUSTO',
+                             color='MES_ANO',
+                             title='Custo Total por Veículo - Distribuição Mensal por Loja',
+                             labels={'VALOR_UNITARIO_CUSTO': 'Valor Total (R$)', 'LOJA': 'Loja'},
+                             barmode='group')
+        
+        # Adiciona linha da mediana
+        fig_mes_loja.add_hline(y=mediana_mes_loja, 
+                              line_dash="dash", 
+                              line_color="red",
+                              annotation_text=f"Mediana: R$ {mediana_mes_loja:,.2f}")
+        
+        st.plotly_chart(fig_mes_loja, use_container_width=True)
         
         # Resumos Detalhados
         st.header("📋 Resumos Detalhados")
