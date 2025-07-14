@@ -372,12 +372,16 @@ def main():
         with col3:
             st.info(f"💰 **Descrição top**: {desc_maior['DESCRICAO'][:20]}...\nR$ {desc_maior['TOTAL']:,.2f}")
         
+        import io
         # Download
         st.header("💾 Download dos Dados")
-        excel = dados['original'].to_excel(index=False)
+        buffer = io.BytesIO()
+        dados['original'].to_excel(buffer, index=False)
+        buffer.seek(0)
+
         st.download_button(
             label="📥 Baixar dados em Excel",
-            data=excel,
+            data=buffer,
             file_name=f"custos_totais_{data_inicio}_{data_fim}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
