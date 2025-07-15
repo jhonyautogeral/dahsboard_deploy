@@ -8,7 +8,6 @@ class AccessControl:
     """Controla acesso às páginas por cargo"""
     
     PERMISSIONS = {
-        "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "custo_entrega.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "custos.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "modo_venda_itens_curva.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
@@ -16,12 +15,12 @@ class AccessControl:
         "mapa_calor.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "entrega_em_40.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "abastecimento_veic.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
-        "entrega_logistica.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"]
+        "entrega_logistica.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
+        "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"]
     }
     
     PAGES = [
         {"file": "page1.py", "label": "DASHBOARD E MÉTRICAS DA AUTO GERAL", "permitir": None},
-        {"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")},
         {"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
         {"file": "mapa_calor.py", "label": "Mapa de Calor", "permitir": PERMISSIONS.get("mapa_calor.py")},
@@ -30,6 +29,7 @@ class AccessControl:
         {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
         {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("abastecimento_veic.py")},
         {"file": "entrega_logistica.py", "label": "Entrega Logística", "permitir": PERMISSIONS.get("entrega_logistica.py")},
+        {"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")},
 
     ]
     
