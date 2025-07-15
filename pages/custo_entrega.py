@@ -31,6 +31,7 @@ def obter_loja_dict(engine):
 # -----------------------
 # Conexão e Dados
 # -----------------------
+from core.db import DatabaseManager
 def criar_conexao():
     """Função de compatibilidade - retorna engine"""
     return DatabaseManager.get_engine()

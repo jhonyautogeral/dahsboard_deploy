@@ -21,12 +21,10 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
 # -----------------------
 # 1. Conexão com Banco de Dados
 # -----------------------
+from core.db import DatabaseManager
 def criar_conexao():
-    """Cria e retorna a conexão com o banco de dados MySQL."""
-    config = st.secrets["connections"]["mysql"]
-    url = (f"{config['dialect']}://{config['username']}:{config['password']}@"
-           f"{config['host']}:{config['port']}/{config['database']}")
-    return create_engine(url)
+    """Função de compatibilidade - retorna engine"""
+    return DatabaseManager.get_engine()
 
 def executar_query(engine, query):
     """Executa a query no banco de dados e retorna um DataFrame."""
