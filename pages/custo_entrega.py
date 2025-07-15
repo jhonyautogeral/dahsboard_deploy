@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from sqlalchemy import create_engine
 import calendar
+from core.db import DatabaseManager
 
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
@@ -31,10 +32,8 @@ def obter_loja_dict(engine):
 # Conexão e Dados
 # -----------------------
 def criar_conexao():
-    config = st.secrets["connections"]["mysql"]
-    url = f"{config['dialect']}://{config['username']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
-    return create_engine(url)
-
+    """Função de compatibilidade - retorna engine"""
+    return DatabaseManager.get_engine()
 def obter_entregas(engine, inicio_str, fim_str, tipo_entrega="TODAS", loja_dict=None):
     """Obtém dados de entregas baseado no tipo selecionado."""
     
@@ -70,8 +69,8 @@ def obter_entregas(engine, inicio_str, fim_str, tipo_entrega="TODAS", loja_dict=
         """
         
         try:
-            df_todas = pd.read_sql(query_todas, engine)
-            df_clientes = pd.read_sql(query_clientes, engine)
+            df_todas = DatabaseManager.execute_query(query_todas)
+            df_clientes = DatabaseManager.execute_query(query_clientes)
             
             if not df_todas.empty and not df_clientes.empty:
                 df_merged = df_todas.merge(df_clientes, on=['CADASTRO', 'LOJA'], suffixes=('_todas', '_clientes'))
@@ -99,7 +98,7 @@ def obter_entregas(engine, inicio_str, fim_str, tipo_entrega="TODAS", loja_dict=
         """
     
     try:
-        df = pd.read_sql(query, engine)
+        df = DatabaseManager.execute_query(query)
         if not df.empty:
             df["DATA"] = pd.to_datetime(df["CADASTRO"]).dt.date
             if loja_dict:

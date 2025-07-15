@@ -13,7 +13,7 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.stop()
 
 def criar_conexao():
-    """Função de compatibilidade - retorna engine"""
+    """Cria conexão com o banco de dados"""
     return DatabaseManager.get_engine()
 
 def obter_descricoes_disponiveis(engine):
