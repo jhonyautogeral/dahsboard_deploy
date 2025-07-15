@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from datetime import datetime, date, timedelta
 from sqlalchemy import create_engine
 import calendar
-from core.db import DatabaseManager
 
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
@@ -31,10 +30,10 @@ def obter_loja_dict(engine):
 # -----------------------
 # Conexão e Dados
 # -----------------------
-from core.db import DatabaseManager
 def criar_conexao():
-    """Função de compatibilidade - retorna engine"""
-    return DatabaseManager.get_engine()
+    config = st.secrets["connections"]["mysql"]
+    url = f"{config['dialect']}://{config['username']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
+    return create_engine(url)
 
 def obter_entregas(engine, inicio_str, fim_str, tipo_entrega="TODAS", loja_dict=None):
     """Obtém dados de entregas baseado no tipo selecionado."""

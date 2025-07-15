@@ -4,7 +4,6 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-from core.db import DatabaseManager
 
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
@@ -13,8 +12,11 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.stop()
 
 def criar_conexao():
-    """Cria conexão com o banco de dados"""
-    return DatabaseManager.get_engine()
+    """Cria conexão com MySQL"""
+    config = st.secrets["connections"]["mysql"]
+    url = (f"{config['dialect']}://{config['username']}:{config['password']}@"
+           f"{config['host']}:{config['port']}/{config['database']}")
+    return create_engine(url)
 
 def obter_descricoes_disponiveis(engine):
     """Obtém todas as descrições disponíveis"""
@@ -60,11 +62,12 @@ def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=Non
     WHERE {' AND '.join(where_conditions)}
     ORDER BY a.CADASTRO, c.COMP_LOJA
     """
-    return DatabaseManager.execute_query(query)
+    return pd.read_sql_query(query, engine)
 
 def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
     """Processa dados de custos totais - função reutilizável"""
-    df = consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas, descricoes_selecionadas)
+    engine = criar_conexao()
+    df = consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas, descricoes_selecionadas)
     
     if df.empty:
         return None
