@@ -34,6 +34,7 @@ def obter_loja_dict(engine):
 def criar_conexao():
     """Função de compatibilidade - retorna engine"""
     return DatabaseManager.get_engine()
+
 def obter_entregas(engine, inicio_str, fim_str, tipo_entrega="TODAS", loja_dict=None):
     """Obtém dados de entregas baseado no tipo selecionado."""
     
@@ -69,8 +70,8 @@ def obter_entregas(engine, inicio_str, fim_str, tipo_entrega="TODAS", loja_dict=
         """
         
         try:
-            df_todas = DatabaseManager.execute_query(query_todas)
-            df_clientes = DatabaseManager.execute_query(query_clientes)
+            df_todas = pd.read_sql(query_todas, engine)
+            df_clientes = pd.read_sql(query_clientes, engine)
             
             if not df_todas.empty and not df_clientes.empty:
                 df_merged = df_todas.merge(df_clientes, on=['CADASTRO', 'LOJA'], suffixes=('_todas', '_clientes'))
@@ -98,7 +99,7 @@ def obter_entregas(engine, inicio_str, fim_str, tipo_entrega="TODAS", loja_dict=
         """
     
     try:
-        df = DatabaseManager.execute_query(query)
+        df = pd.read_sql(query, engine)
         if not df.empty:
             df["DATA"] = pd.to_datetime(df["CADASTRO"]).dt.date
             if loja_dict:
@@ -142,7 +143,7 @@ def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=Non
     ORDER BY a.CADASTRO, c.COMP_LOJA
     """
     
-    return DatabaseManager.execute_query(text(query), engine, params={'frota_pattern': '%FROTA%'})
+    return pd.read_sql_query(text(query), engine, params={'frota_pattern': '%FROTA%'})
 
 def obter_custos_por_tipo(engine, inicio_str, fim_str, tipo_entrega, loja_dict=None):
     """Obtém custos baseado no tipo de entrega"""
