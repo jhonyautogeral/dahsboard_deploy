@@ -142,7 +142,7 @@ def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=Non
     ORDER BY a.CADASTRO, c.COMP_LOJA
     """
     
-    return pd.read_sql_query(text(query), engine, params={'frota_pattern': '%FROTA%'})
+    return DatabaseManager.execute_query(text(query), engine, params={'frota_pattern': '%FROTA%'})
 
 def obter_custos_por_tipo(engine, inicio_str, fim_str, tipo_entrega, loja_dict=None):
     """Obtém custos baseado no tipo de entrega"""
