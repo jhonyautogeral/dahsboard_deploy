@@ -14,9 +14,11 @@ import calendar
 
 if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
-# Função para criar conexão com o banco de dados
+# Funções de conexão e consulta
 def criar_conexao():
-    return create_engine('mysql+pymysql://erpj-ws:erpj-ws-homologacao@127.0.0.1:3308/autogeral')
+    config = st.secrets["connections"]["mysql"]
+    url = f"{config['dialect']}://{config['username']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
+    return create_engine(url)
 
 # Função genérica para realizar consultas ao banco de dados
 def executar_query(engine, query):
