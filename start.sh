@@ -1,10 +1,7 @@
 #!/bin/bash
 
 # Inicie o proxy Cloud SQL em background
-/cloudsql/cloud-sql-proxy \
-  --credentials-file=/cloudsql/erpj-br-sql.json \
-  erpj-br:southamerica-east1:erpj-sql \
-  --port=3309 &
+/proxy_server/cloud-sql-proxy  --credentials-file=/proxy_server/erpj-br-sql.json  erpj-br:southamerica-east1:erpj-sql  --port=3309 &
   
 # Inicie o ngrok
 ngrok http 9000 > /dev/null &

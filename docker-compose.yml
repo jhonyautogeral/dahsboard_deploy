@@ -7,9 +7,9 @@ services:
       - "4040:4040"  # ngrok API local (opcional para debug)
     volumes:
       - .:/app
-      - ./proxy_server:/cloudsql  # Monta pasta do Cloud SQL Proxy e credenciais
+      - ./proxy_server:/proxy_server  # Monta pasta do Cloud SQL Proxy e credenciais
     command: ["bash", "/start.sh"]
     environment:
       - PYTHONUNBUFFERED=1
-      - GOOGLE_APPLICATION_CREDENTIALS=/cloudsql/erpj-br-sql.json  # Padrão da lib do proxy
+      - GOOGLE_APPLICATION_CREDENTIALS=/proxy_server/erpj-br-sql.json  # Padrão da lib do proxy
     restart: unless-stopped
