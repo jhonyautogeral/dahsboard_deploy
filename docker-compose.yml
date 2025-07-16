@@ -1,13 +1,17 @@
+version: '3.8'
 
 services:
   dashboard:
     build: .
     container_name: streamlit_dashboard
     ports:
-      - "8501:8501"
+      - "9000:9000"  # Streamlit roda na porta 9000
+      - "4040:4040"  # ngrok API local (opcional para debug)
     volumes:
       - .:/app
-    command: ["bash", "start.sh"]
+      - ./proxy_server:/cloudsql  # Monta pasta do Cloud SQL Proxy e credenciais
+    command: ["bash", "/start.sh"]
     environment:
       - PYTHONUNBUFFERED=1
+      - GOOGLE_APPLICATION_CREDENTIALS=/cloudsql/erpj-br-sql.json  # Padrão da lib do proxy
     restart: unless-stopped
