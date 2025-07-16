@@ -6,6 +6,11 @@ cloud_sql_proxy erpj-br:southamerica-east1:erpj-sql --credentials-file=proxy_ser
 # Aguarde o proxy inicializar
 sleep 3
 
+# Após o cloud_sql_proxy, adicione:
+echo "Verificando proxy..."
+sleep 5
+netstat -tlnp | grep 3309 || echo "Proxy não está rodando na porta 3309"
+
 # Inicie o ngrok
 ngrok http 9000 > /dev/null &
 

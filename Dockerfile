@@ -12,6 +12,14 @@ RUN apt-get update && apt-get install -y \
     unzip \
     curl \
     jq \
+    net-tools \
+    procps \
+    mysql-client \
+    telnet \
+    ping \
+    vim \
+    nano \
+    bash \
     && apt-get clean
 
 # Instale o ngrok
