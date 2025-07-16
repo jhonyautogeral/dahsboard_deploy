@@ -4,3 +4,9 @@
 poetry.lock
 __pycache__/
 pages/__pycache__
+
+proxy_server/__pycache__
+proxy_server/init.bat
+proxy_server/proxy_server.py
+cloud-sql-proxy.x64.exe
+erpj-br-sql.json

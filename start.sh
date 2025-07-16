@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Inicie o proxy server em background
+./proxy_server/init.bat &
+
 # Inicie o ngrok
 ngrok http 9000 > /dev/null &
 
