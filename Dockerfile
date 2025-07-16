@@ -20,6 +20,10 @@ RUN wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
     && mv ngrok /usr/local/bin/ \
     && rm ngrok-v3-stable-linux-amd64.zip
 
+# Instale o cloud-sql-proxy para Linux
+RUN wget -q https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 -O /usr/local/bin/cloud_sql_proxy \
+    && chmod +x /usr/local/bin/cloud_sql_proxy
+
 # Adicionar variáveis de ambiente
 ENV NGROK_AUTHTOKEN=2sdnuIh9i59xefKut8c7j7Hhgby_3bWNDGP16fKCtXND1zQpx
 

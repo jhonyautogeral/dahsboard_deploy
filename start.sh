@@ -1,7 +1,10 @@
 #!/bin/sh
 
-# Inicie o proxy server em background
-./proxy_server/init.bat &
+# Inicie o cloud-sql-proxy em background
+cloud_sql_proxy erpj-br:southamerica-east1:erpj-sql --credentials-file=proxy_server/erpj-br-sql.json --port=3309 &
+
+# Aguarde o proxy inicializar
+sleep 3
 
 # Inicie o ngrok
 ngrok http 9000 > /dev/null &
