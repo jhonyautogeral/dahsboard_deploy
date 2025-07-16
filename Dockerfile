@@ -14,13 +14,14 @@ RUN apt-get update && apt-get install -y \
     jq \
     net-tools \
     procps \
-    mysql-client \
+    iputils-ping \
+    default-mysql-client \
     telnet \
-    ping \
     vim \
     nano \
     bash \
-    && apt-get clean
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 # Instale o ngrok
 RUN wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip \
