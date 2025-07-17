@@ -48,6 +48,7 @@ def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=Non
         c.COMP_CODI AS COMPRA,
         c.CADA_ATIV_ID AS CADASTRO_VEICULO,
         cv.PLACA,
+        c.cada_ativ_id AS CADA_ATIV_ID,
         c.VALR_RATE AS VALOR_UNITARIO_CUSTO,
         (c.VALR_RATE / a.VALOR_TOTAL_NOTA) AS PERC,
         c.DSCR AS DESCRICAO,
