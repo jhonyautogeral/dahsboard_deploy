@@ -260,10 +260,10 @@ def main():
         with col2:
             # Filtro de CADA_ATIV_ID
             filtro_ativ_id = st.text_input(
-                "🔍 Filtrar por ID Atividade",
+                "🔍 Filtrar por ID do ativo",
                 value="",
-                placeholder="Digite o ID da atividade",
-                help="Busca por ID da atividade (CADA_ATIV_ID)"
+                placeholder="Digite o ID do ativo",
+                help="Busca por ID do ativo (CADA_ATIV_ID)"
             )
 
         # Aplicar filtros

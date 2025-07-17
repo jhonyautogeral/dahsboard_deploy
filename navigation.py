@@ -23,12 +23,12 @@ class AccessControl:
         {"file": "page1.py", "label": "DASHBOARD E MÉTRICAS DA AUTO GERAL", "permitir": None},
         {"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
-        {"file": "mapa_calor.py", "label": "Mapa de Calor", "permitir": PERMISSIONS.get("mapa_calor.py")},
+        {"file": "entrega_logistica.py", "label": "Entrega Logística", "permitir": PERMISSIONS.get("entrega_logistica.py")},
         {"file": "modo_venda_itens_curva.py", "label": "Vendas intens e curva", "permitir": PERMISSIONS.get("modo_venda_itens_curva.py")},
         {"file": "modo_vendas_sem_curva.py", "label": "Vendas sem curva", "permitir": PERMISSIONS.get("modo_vendas_sem_curva.py")},
-        {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
+        {"file": "mapa_calor.py", "label": "Mapa de Calor", "permitir": PERMISSIONS.get("mapa_calor.py")},
         {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("abastecimento_veic.py")},
-        {"file": "entrega_logistica.py", "label": "Entrega Logística", "permitir": PERMISSIONS.get("entrega_logistica.py")},
+        {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
         {"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")},
 
     ]
