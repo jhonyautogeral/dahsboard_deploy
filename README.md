@@ -2,6 +2,8 @@
 
 Este projeto utiliza **Python + Streamlit** para visualização de dados operacionais da Auto Geral.
 
+Projeto funcional em deploy link: https://github.com/autogeral/dashboards/blob/master/README.md
+
 ## ✅ Funcionalidades
 
 - Autenticação via Azure (MSAL)
