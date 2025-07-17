@@ -242,27 +242,55 @@ def main():
             st.metric("Lojas Ativas", lojas_ativas)
         
         # Dados Detalhados com filtro de placa
+        # Dados Detalhados com filtros
         st.header("📋 Dados Detalhados")
-        
-        # Filtro de placa
-        filtro_placa = st.text_input(
-            "🔍 Filtrar por Placa",
-            value="",
-            placeholder="Digite parte da placa (ex: ABC, 1234)",
-            help="Busca por partes da placa - não precisa ser exata"
-        )
-        
-        # Aplicar filtro de placa
+
+        # Linha com os dois filtros
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Filtro de placa
+            filtro_placa = st.text_input(
+                "🔍 Filtrar por Placa",
+                value="",
+                placeholder="Digite parte da placa (ex: ABC, 1234)",
+                help="Busca por partes da placa - não precisa ser exata"
+            )
+
+        with col2:
+            # Filtro de CADA_ATIV_ID
+            filtro_ativ_id = st.text_input(
+                "🔍 Filtrar por ID Atividade",
+                value="",
+                placeholder="Digite o ID da atividade",
+                help="Busca por ID da atividade (CADA_ATIV_ID)"
+            )
+
+        # Aplicar filtros
         df_filtrado = dados['original'].copy()
+
+        # Filtro por placa
         if filtro_placa:
             df_filtrado = df_filtrado[
                 df_filtrado['PLACA'].str.contains(filtro_placa, case=False, na=False)
             ]
-        
-        # Mostrar informações do filtro
+
+        # Filtro por CADA_ATIV_ID
+        if filtro_ativ_id:
+            df_filtrado = df_filtrado[
+                df_filtrado['CADA_ATIV_ID'].astype(str).str.contains(filtro_ativ_id, case=False, na=False)
+            ]
+
+        # Mostrar informações dos filtros
+        filtros_ativos = []
         if filtro_placa:
-            st.info(f"📊 Mostrando {len(df_filtrado)} registros filtrados por placa: '{filtro_placa}'")
-        
+            filtros_ativos.append(f"Placa: '{filtro_placa}'")
+        if filtro_ativ_id:
+            filtros_ativos.append(f"ID Atividade: '{filtro_ativ_id}'")
+
+        if filtros_ativos:
+            st.info(f"📊 Mostrando {len(df_filtrado)} registros filtrados por {' e '.join(filtros_ativos)}")
+
         st.dataframe(df_filtrado.head(100), use_container_width=True)
         
         # Análise Visual Principal
@@ -318,48 +346,23 @@ def main():
             st.subheader("Custo Total por Loja, Mês e Placa")
             
             # Filtro de busca por placa
-            # Dados Detalhados com filtros
-            
-            # Filtro de ativo
-            filtro_ativo = st.text_input(
-                "🔍 Filtrar por Número do Ativo",
-                value="",
-                placeholder="Digite o número do ativo (ex: 123, 456)",
-                help="Busca pelo número exato do ativo"
-            )
-
-            # Filtro de placa
-            filtro_placa = st.text_input(
-                "🔍 Filtrar por Placa",
+            filtro_placa_resumo = st.text_input(
+                "🔍 Filtrar por Placa no Resumo",
                 value="",
                 placeholder="Digite parte da placa (ex: ABC, 1234)",
-                help="Busca por partes da placa - não precisa ser exata"
+                help="Busca por partes da placa - não precisa ser exata",
+                key="filtro_placa_resumo"
             )
-
-            # Aplicar filtros
-            df_filtrado = dados['original'].copy()
-
-            if filtro_ativo:
-                df_filtrado = df_filtrado[
-                    df_filtrado['CADA_ATIV_ID'].astype(str).str.contains(filtro_ativo, na=False)
+            
+            # Aplicar filtro na tabela resumo
+            df_resumo_filtrado = dados['por_loja_mes_placa'].copy()
+            if filtro_placa_resumo:
+                df_resumo_filtrado = df_resumo_filtrado[
+                    df_resumo_filtrado['PLACA'].str.contains(filtro_placa_resumo, case=False, na=False)
                 ]
-
-            if filtro_placa:
-                df_filtrado = df_filtrado[
-                    df_filtrado['PLACA'].str.contains(filtro_placa, case=False, na=False)
-                ]
-
-            # Mostrar informações dos filtros
-            filtros_ativos = []
-            if filtro_ativo:
-                filtros_ativos.append(f"ativo: '{filtro_ativo}'")
-            if filtro_placa:
-                filtros_ativos.append(f"placa: '{filtro_placa}'")
-
-            if filtros_ativos:
-                st.info(f"📊 Mostrando {len(df_filtrado)} registros filtrados por {' e '.join(filtros_ativos)}")
-
-            st.dataframe(df_filtrado.head(100), use_container_width=True)
+                st.info(f"📊 Mostrando {len(df_resumo_filtrado)} registros filtrados por placa: '{filtro_placa_resumo}'")
+            
+            st.dataframe(df_resumo_filtrado, use_container_width=True)
         
         # Análises Específicas
         st.header("📊 Análises Específicas")
