@@ -2,7 +2,7 @@
 
 Este projeto utiliza **Python + Streamlit** para visualização de dados operacionais da Auto Geral.
 
-Projeto funcional em deploy link: https://github.com/autogeral/dashboards/blob/master/README.md
+Projeto funcional em deploy link: https://github.com/jhonyautogeral/dahsboard_deploy
 
 ## ✅ Funcionalidades
 
