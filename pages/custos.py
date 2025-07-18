@@ -239,8 +239,8 @@ def main():
         with col3:
             st.metric("Registros", f"{total_registros:,}")
         with col4:
-            st.metric("Lojas Ativas", lojas_ativas)
-        
+            st.metric("Quantidade Lojas no Filtro", lojas_ativas)
+
         # Dados Detalhados com filtros
         st.header("📋 Dados Detalhados")
 
