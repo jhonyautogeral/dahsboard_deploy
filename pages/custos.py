@@ -258,12 +258,12 @@ def main():
             )
 
         with col2:
-            # Filtro de CADA_ATIV_ID
+            # Filtro de DESCRICAO
             filtro_ativ_id = st.text_input(
-                "🔍 Filtrar por ID do ativo",
+                "🔍 Filtrar por DESCRICÃO",
                 value="",
-                placeholder="Digite o ID do ativo",
-                help="Busca por ID do ativo (CADA_ATIV_ID)"
+                placeholder="Digite a descrição",
+                help="Busca por partes da descrição - não precisa ser exata"
             )
 
         # Aplicar filtros
@@ -275,10 +275,10 @@ def main():
                 df_filtrado['PLACA'].str.contains(filtro_placa, case=False, na=False)
             ]
 
-        # Filtro por CADA_ATIV_ID
+        # Filtro por DESCRICAO
         if filtro_ativ_id:
             df_filtrado = df_filtrado[
-                df_filtrado['CADA_ATIV_ID'].astype(str).str.contains(filtro_ativ_id, case=False, na=False)
+                df_filtrado['DSCR'].astype(str).str.contains(filtro_ativ_id, case=False, na=False)
             ]
 
         # Mostrar informações dos filtros
@@ -302,8 +302,8 @@ def main():
         st.header("📊 Análises Complementares")
         
         # Gráfico de barras: Mês x Loja com valores totais por veículo
-        st.subheader("Custo Total por Veículo - Mês x Loja")
-        
+        st.subheader("Custo Total por Loja")
+
         # Agrupa por mês, loja e calcula soma dos custos por veículo
         df_mes_loja = dados['original'].groupby(['MES_ANO', 'LOJA'])['VALOR_UNITARIO_CUSTO'].sum().reset_index()
         df_mes_loja['MES_ANO'] = df_mes_loja['MES_ANO'].astype(str)
@@ -316,7 +316,7 @@ def main():
                              x='LOJA', 
                              y='VALOR_UNITARIO_CUSTO',
                              color='MES_ANO',
-                             title='Custo Total por Veículo - Distribuição Mensal por Loja',
+                             title='Custo Total Mensal por Loja',
                              labels={'VALOR_UNITARIO_CUSTO': 'Valor Total (R$)', 'LOJA': 'Loja'},
                              barmode='group')
         
