@@ -241,7 +241,6 @@ def main():
         with col4:
             st.metric("Lojas Ativas", lojas_ativas)
         
-        # Dados Detalhados com filtro de placa
         # Dados Detalhados com filtros
         st.header("📋 Dados Detalhados")
 
@@ -278,7 +277,7 @@ def main():
         # Filtro por DESCRICAO
         if filtro_ativ_id:
             df_filtrado = df_filtrado[
-                df_filtrado['DSCR'].astype(str).str.contains(filtro_ativ_id, case=False, na=False)
+                df_filtrado['DESCRICAO'].astype(str).str.contains(filtro_ativ_id, case=False, na=False)
             ]
 
         # Mostrar informações dos filtros
@@ -286,7 +285,7 @@ def main():
         if filtro_placa:
             filtros_ativos.append(f"Placa: '{filtro_placa}'")
         if filtro_ativ_id:
-            filtros_ativos.append(f"ID Atividade: '{filtro_ativ_id}'")
+            filtros_ativos.append(f"DESCRICÃO: '{filtro_ativ_id}'")
 
         if filtros_ativos:
             st.info(f"📊 Mostrando {len(df_filtrado)} registros filtrados por {' e '.join(filtros_ativos)}")
