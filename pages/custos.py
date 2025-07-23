@@ -44,7 +44,7 @@ def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=Non
     
     query = f"""
     SELECT DISTINCT
-        c.COMP_LOJA AS LOJA,
+        cvu.LOJA AS LOJA,
         c.COMP_CODI AS COMPRA,
         c.CADA_ATIV_ID AS CADASTRO_VEICULO,
         cv.PLACA,
@@ -60,9 +60,11 @@ def consulta_custos_totais(data_inicio, data_fim, engine, lojas_selecionadas=Non
         c.COMP_CODI = a.COMPRA AND c.COMP_LOJA = a.LOJA
     LEFT JOIN cadastros_ativos ca ON c.CADA_ATIV_ID = ca.CADA_ATIV_ID 
     LEFT JOIN cadastros_veiculos cv on ca.CADA_VEIC_ID = cv.CADA_VEIC_ID
+    LEFT JOIN cadastros_veiculos_ultilizacao cvu ON	ca.CADA_VEIC_ID = cvu.CADA_VEIC_ID
     WHERE {' AND '.join(where_conditions)}
     ORDER BY a.CADASTRO, c.COMP_LOJA
     """
+    
     return pd.read_sql_query(query, engine)
 
 def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
