@@ -5,14 +5,14 @@ import plotly.express as px
 from sqlalchemy import create_engine
 from datetime import datetime, date
 
+# Configuração da página
+st.set_page_config(page_title="Dashboard de Entregas", layout="wide")
+
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
     st.stop()
-
-# Configuração da página
-st.set_page_config(page_title="Dashboard de Entregas", layout="wide")
 
 # Função de conexão
 @st.cache_resource
