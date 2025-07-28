@@ -8,6 +8,9 @@ from datetime import datetime, date
 # Configuração da página
 st.set_page_config(page_title="Dashboard de Entregas", layout="wide")
 
+if st.sidebar.button("Voltar"):
+    st.switch_page("app.py")
+
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
