@@ -342,6 +342,7 @@ def main():
     
     if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
+    
     # Criar conexão
     engine = criar_conexao()
     
@@ -356,10 +357,25 @@ def main():
                                            format_func=lambda x: loja_dict[x])
     
     # Navegação por período
-    periodo = st.sidebar.radio("Período de Análise", ["Ano", "Mês", "Semana"])
+    periodo = st.sidebar.radio("Período de Análise", ["Ano", "Mês", "Semana", "Período Personalizado"])
     
     # Configurar datas baseado no período
-    if periodo == "Ano":
+    if periodo == "Período Personalizado":
+        # Seleção de datas
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            data_inicio = st.date_input("Data Início", 
+                                       value=datetime.now() - timedelta(days=30))
+        with col2:
+            data_fim = st.date_input("Data Fim", 
+                                    value=datetime.now())
+        
+        # Converter para datetime
+        data_inicio = datetime.combine(data_inicio, datetime.min.time())
+        data_fim = datetime.combine(data_fim, datetime.max.time())
+        titulo_periodo = f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}"
+        
+    elif periodo == "Ano":
         anos = obter_ultimos_anos()
         ano_selecionado = st.sidebar.selectbox("Ano", anos)
         data_inicio = datetime(ano_selecionado, 1, 1)
