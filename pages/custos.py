@@ -130,26 +130,91 @@ def gerar_grafico_custos(dados, tipo_grafico, tipo_analise):
         df_plot = dados['por_loja']
         x_col, y_col = 'LOJA', 'TOTAL'
         title = 'Custos Totais por Loja'
+        
+        # Definir cores neutras para cada loja
+        cores_neutras = [
+            '#4A90E2',  # Azul claro
+            '#50C878',  # Verde esmeralda
+            '#9B59B6',  # Roxo suave
+            '#F39C12',  # Laranja suave
+            '#1ABC9C',  # Turquesa
+            '#34495E',  # Azul acinzentado
+            '#95A5A6',  # Cinza claro
+            '#16A085',  # Verde azulado
+            '#8E44AD',  # Roxo médio
+            '#2980B9',  # Azul médio
+            '#27AE60',  # Verde médio
+            '#E67E22',  # Laranja médio
+            '#3498DB'   # Azul céu
+        ]
+        
+        # Ordenar dados por loja
+        df_plot = df_plot.sort_values('LOJA', ascending=True)
+        
+        # Criar lista de cores baseada no número de lojas
+        num_lojas = len(df_plot)
+        cores_barras = cores_neutras[:num_lojas]
+        if num_lojas > len(cores_neutras):
+            cores_barras = (cores_neutras * ((num_lojas // len(cores_neutras)) + 1))[:num_lojas]
+        
+        # Criar gráfico com cores personalizadas
+        fig = go.Figure()
+        
+        for i, row in df_plot.iterrows():
+            fig.add_trace(go.Bar(
+                x=[row['LOJA']],
+                y=[row['TOTAL']],
+                name=f'Loja {row["LOJA"]}',
+                marker_color=cores_barras[i % len(cores_barras)],
+                text=[f'R$ {row["TOTAL"]:,.2f}'],
+                textposition='auto',
+                showlegend=True
+            ))
+        
+        fig.update_layout(
+            title=title,
+            xaxis_title='Loja',
+            yaxis_title='Valor Total (R$)',
+            xaxis=dict(
+                tickmode='array',
+                tickvals=df_plot['LOJA'].tolist(),
+                ticktext=[f'Loja {loja}' for loja in df_plot['LOJA'].tolist()]
+            )
+        )
+        
     elif tipo_analise == "Por Dia":
         df_plot = dados['por_dia']
         x_col, y_col = 'DATA', 'TOTAL'
         title = 'Custos Totais por Dia'
+        
+        if tipo_grafico == "Barras":
+            fig = px.bar(df_plot, x=x_col, y=y_col, title=title,
+                         labels={y_col: 'Valor Total (R$)', x_col: 'Data'})
+        elif tipo_grafico == "Linha":
+            fig = px.line(df_plot, x=x_col, y=y_col, title=title,
+                          labels={y_col: 'Valor Total (R$)', x_col: 'Data'})
+        elif tipo_grafico == "Área":
+            fig = px.area(df_plot, x=x_col, y=y_col, title=title,
+                          labels={y_col: 'Valor Total (R$)', x_col: 'Data'})
+        else:  # Pizza
+            fig = px.pie(df_plot, values=y_col, names=x_col, title=title)
+            
     else:  # Por Mês
         df_plot = dados['por_mes']
         x_col, y_col = 'MES', 'TOTAL'
         title = 'Custos Totais por Mês'
-    
-    if tipo_grafico == "Barras":
-        fig = px.bar(df_plot, x=x_col, y=y_col, title=title,
-                     labels={y_col: 'Valor Total (R$)', x_col: tipo_analise.split()[1]})
-    elif tipo_grafico == "Linha":
-        fig = px.line(df_plot, x=x_col, y=y_col, title=title,
-                      labels={y_col: 'Valor Total (R$)', x_col: tipo_analise.split()[1]})
-    elif tipo_grafico == "Área":
-        fig = px.area(df_plot, x=x_col, y=y_col, title=title,
-                      labels={y_col: 'Valor Total (R$)', x_col: tipo_analise.split()[1]})
-    else:  # Pizza
-        fig = px.pie(df_plot, values=y_col, names=x_col, title=title)
+        
+        if tipo_grafico == "Barras":
+            fig = px.bar(df_plot, x=x_col, y=y_col, title=title,
+                         labels={y_col: 'Valor Total (R$)', x_col: 'Mês'})
+        elif tipo_grafico == "Linha":
+            fig = px.line(df_plot, x=x_col, y=y_col, title=title,
+                          labels={y_col: 'Valor Total (R$)', x_col: 'Mês'})
+        elif tipo_grafico == "Área":
+            fig = px.area(df_plot, x=x_col, y=y_col, title=title,
+                          labels={y_col: 'Valor Total (R$)', x_col: 'Mês'})
+        else:  # Pizza
+            fig = px.pie(df_plot, values=y_col, names=x_col, title=title)
     
     return fig
 
