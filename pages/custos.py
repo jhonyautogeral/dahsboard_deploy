@@ -431,7 +431,7 @@ def main():
             st.dataframe(df_resumo_filtrado, use_container_width=True)
         
         # Análises Específicas
-        st.header("📊 Análises Específicas")
+        #st.header("📊 Análises Específicas")
         
         # Custo por Loja ao Longo do Tempo
         st.subheader("Custo por Loja ao Longo do Tempo")
@@ -439,7 +439,7 @@ def main():
         fig_heatmap = px.density_heatmap(df_heatmap, x='DATA', y='LOJA', z='VALOR_UNITARIO_CUSTO',
                                         title='Heatmap de Custos por Loja e Data',
                                         labels={'VALOR_UNITARIO_CUSTO': 'Custo Total (R$)'})
-        st.plotly_chart(fig_heatmap, use_container_width=True)
+        # st.plotly_chart(fig_heatmap, use_container_width=True)
         
         # Média de Custo por Loja
         st.subheader("Média de Custo por Loja")
