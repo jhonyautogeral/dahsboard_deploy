@@ -93,7 +93,6 @@ def gerar_query_dados(inicio_str: str, fim_str: str) -> str:
         LEFT JOIN romaneios_dbf r ON e.VENDA_TIPO = 'ROMANEIO'
              AND e.CODIGO_VENDA = r.ROMANEIO AND e.LOJA_VENDA = r.LOJA
         WHERE a.ROTA_METROS IS NOT NULL
-          AND a.LOJA IN (1,2,3,4,5,6,7,8,9,10,11,12,13)
           AND r.CADASTRO BETWEEN '{inicio_str}' AND '{fim_str}';
     """
 
