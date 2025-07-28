@@ -445,17 +445,69 @@ def main():
         st.subheader("Média de Custo por Loja")
         soma_por_loja = dados['original'].groupby('LOJA')['VALOR_UNITARIO_CUSTO'].sum()
         mediana_custo = soma_por_loja.median()
-        
+
         soma_loja_df = soma_por_loja.reset_index()
         soma_loja_df.columns = ['LOJA', 'CUSTO_TOTAL']
-        
-        fig_media = px.bar(soma_loja_df, x='LOJA', y='CUSTO_TOTAL',
-                            title=f'Custo Total por Loja (Mediana: R$ {mediana_custo:,.2f})',
-                            labels={'CUSTO_TOTAL': 'Custo Total (R$)'})
-        
-        fig_media.add_hline(y=mediana_custo, line_dash="dash", line_color="red",
-                            annotation_text=f"Mediana: R$ {mediana_custo:,.2f}")
-        
+        soma_loja_df = soma_loja_df.sort_values('LOJA', ascending=True)
+
+        # Definir cores neutras para cada loja
+        cores_neutras = [
+            '#4A90E2',  # Azul claro
+            '#50C878',  # Verde esmeralda
+            '#9B59B6',  # Roxo suave
+            '#F39C12',  # Laranja suave
+            '#1ABC9C',  # Turquesa
+            '#34495E',  # Azul acinzentado
+            '#95A5A6',  # Cinza claro
+            '#16A085',  # Verde azulado
+            '#8E44AD',  # Roxo médio
+            '#2980B9',  # Azul médio
+            '#27AE60',  # Verde médio
+            '#E67E22',  # Laranja médio
+            '#3498DB'   # Azul céu
+        ]
+
+        # Criar lista de cores baseada no número de lojas
+        num_lojas = len(soma_loja_df)
+        cores_barras = cores_neutras[:num_lojas]
+        if num_lojas > len(cores_neutras):
+            cores_barras = (cores_neutras * ((num_lojas // len(cores_neutras)) + 1))[:num_lojas]
+
+        # Criar gráfico com cores personalizadas
+        fig_media = go.Figure()
+
+        # Adicionar uma barra para cada loja com cor diferente e legenda
+        for i, row in soma_loja_df.iterrows():
+            fig_media.add_trace(go.Bar(
+                x=[row['LOJA']],
+                y=[row['CUSTO_TOTAL']],
+                name=f'Loja {row["LOJA"]}',
+                marker_color=cores_barras[i % len(cores_barras)],
+                text=[f'R$ {row["CUSTO_TOTAL"]:,.2f}'],
+                textposition='auto',
+                showlegend=True
+            ))
+
+        # Adicionar linha da mediana
+        fig_media.add_hline(
+            y=mediana_custo, 
+            line_dash="dash", 
+            line_color="red",
+            annotation_text=f"Mediana: R$ {mediana_custo:,.2f}"
+        )
+
+        # Configurar layout
+        fig_media.update_layout(
+            title=f'Custo Total por Loja (Mediana: R$ {mediana_custo:,.2f})',
+            xaxis_title='Loja',
+            yaxis_title='Custo Total (R$)',
+            xaxis=dict(
+                tickmode='array',
+                tickvals=soma_loja_df['LOJA'].tolist(),
+                ticktext=[f'Loja {loja}' for loja in soma_loja_df['LOJA'].tolist()]
+            )
+        )
+
         st.plotly_chart(fig_media, use_container_width=True)
         
         # Insights automáticos
