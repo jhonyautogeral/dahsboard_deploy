@@ -29,7 +29,7 @@ RUN wget -q https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
  && rm ngrok-v3-stable-linux-amd64.zip
 
 # Configura token do ngrok
-ENV NGROK_AUTHTOKEN=2sdnuIh9i59xefKut8c7j7Hhgby_3bWNDGP16fKCtXND1zQpx
+ENV NGROK_AUTHTOKEN=2rRkROehfzba10HgFFisFasgM90_52sopvxkNmMf4HP3p5LFv
 RUN ngrok config add-authtoken $NGROK_AUTHTOKEN
 
 # Define diretório de trabalho
