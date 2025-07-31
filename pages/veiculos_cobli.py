@@ -7,6 +7,9 @@ from datetime import datetime
 st.set_page_config(page_title="Dashboard Cobli", layout="wide")
 st.title("🚗 Dashboard de Monitoramento Cobli")
 
+if st.sidebar.button("Voltar"):
+    st.switch_page("app.py")
+
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
