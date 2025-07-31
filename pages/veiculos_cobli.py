@@ -20,7 +20,7 @@ HEADERS = {
     "cobli-api-key": API_KEY
 }
 
-@st.cache_data(ttl=300)  # Cache por 5 minutos
+@st.cache_data(ttl=300)
 def get_api_data(endpoint):
     """Função para fazer requisições à API"""
     url = f"https://api.cobli.co/public/v1/{endpoint}?limit=2000&page=1"
@@ -93,6 +93,37 @@ if not vehicles:
     st.error("Não foi possível carregar os dados. Verifique a API.")
     st.stop()
 
+# ESTATÍSTICAS GERAIS
+st.header("📊 Estatísticas Gerais")
+
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric(
+        label="Total de Veículos",
+        value=len(vehicles)
+    )
+
+with col2:
+    st.metric(
+        label="Total de Lojas", 
+        value=len(groups)
+    )
+
+with col3:
+    veiculos_com_motorista = sum(1 for v in vehicles if v.get('last_driver_name'))
+    st.metric(
+        label="Com Motorista",
+        value=veiculos_com_motorista
+    )
+
+with col4:
+    veiculos_sem_motorista = sum(1 for v in vehicles if not v.get('last_driver_name'))
+    st.metric(
+        label="Sem Motorista",
+        value=veiculos_sem_motorista
+    )
+
 # TABELA 1: DISPOSITIVOS POR LOJA
 st.header("📱 Dispositivos por Loja")
 st.write("Listagem completa de todos os veículos com seus respectivos dispositivos e informações básicas.")
@@ -115,42 +146,46 @@ for vehicle in vehicles:
         device_table.append(device_data)
 
 df_devices = pd.DataFrame(device_table)
-df_devices['_sort_key'] = df_devices['Loja'].apply(extract_store_number)
-df_devices = df_devices.sort_values('_sort_key').drop('_sort_key', axis=1)
+if not df_devices.empty:
+    df_devices['_sort_key'] = df_devices['Loja'].apply(extract_store_number)
+    df_devices = df_devices.sort_values('_sort_key').drop('_sort_key', axis=1)
 
-# Filtros para tabela de dispositivos
-filtro_loja_1, filtro_placa_1 = create_filters(df_devices, "devices")
-df_devices_filtered = apply_filters(df_devices, filtro_loja_1, filtro_placa_1)
+    # Filtros para tabela de dispositivos
+    filtro_loja_1, filtro_placa_1 = create_filters(df_devices, "devices")
+    df_devices_filtered = apply_filters(df_devices, filtro_loja_1, filtro_placa_1)
 
-st.dataframe(df_devices_filtered, use_container_width=True)
-st.write(f"📊 Mostrando {len(df_devices_filtered)} de {len(df_devices)} veículos")
+    st.dataframe(df_devices_filtered, use_container_width=True)
+    st.write(f"📊 Mostrando {len(df_devices_filtered)} de {len(df_devices)} veículos")
+else:
+    st.warning("Nenhum dispositivo encontrado.")
 
 # TABELA 2: RESUMO POR LOJA
 st.header("📈 Resumo por Loja")
 st.write("Consolidado com quantidade total de veículos, veículos ativos e amostra de placas por loja.")
 
-summary_table = df_devices.groupby('Loja').agg({
-    'Device ID': 'count',
-    'Placa': lambda x: ', '.join(x.head(3)) + ('...' if len(x) > 3 else ''),
-    'Ativo': lambda x: sum(1 for v in x if v == 'Sim')
-}).rename(columns={
-    'Device ID': 'Total Veículos',
-    'Placa': 'Placas (Amostra)',
-    'Ativo': 'Ativos'
-})
-summary_table['_sort_key'] = summary_table.index.map(extract_store_number)
-summary_table = summary_table.sort_values('_sort_key').drop('_sort_key', axis=1)
+if not df_devices.empty:
+    summary_table = df_devices.groupby('Loja').agg({
+        'Device ID': 'count',
+        'Placa': lambda x: ', '.join(x.head(3)) + ('...' if len(x) > 3 else ''),
+        'Ativo': lambda x: sum(1 for v in x if v == 'Sim')
+    }).rename(columns={
+        'Device ID': 'Total Veículos',
+        'Placa': 'Placas (Amostra)',
+        'Ativo': 'Ativos'
+    })
+    summary_table['_sort_key'] = summary_table.index.map(extract_store_number)
+    summary_table = summary_table.sort_values('_sort_key').drop('_sort_key', axis=1)
 
-# Filtro apenas por loja para resumo
-lojas_resumo = ['Todas'] + sorted(summary_table.index.tolist())
-filtro_loja_resumo = st.selectbox("🏪 Filtrar por Loja:", lojas_resumo, key="resumo")
+    # Filtro apenas por loja para resumo
+    lojas_resumo = ['Todas'] + sorted(summary_table.index.tolist())
+    filtro_loja_resumo = st.selectbox("🏪 Filtrar por Loja:", lojas_resumo, key="resumo")
 
-if filtro_loja_resumo != 'Todas':
-    summary_filtered = summary_table[summary_table.index == filtro_loja_resumo]
-else:
-    summary_filtered = summary_table
+    if filtro_loja_resumo != 'Todas':
+        summary_filtered = summary_table[summary_table.index == filtro_loja_resumo]
+    else:
+        summary_filtered = summary_table
 
-st.dataframe(summary_filtered, use_container_width=True)
+    st.dataframe(summary_filtered, use_container_width=True)
 
 # TABELA 3: COMBUSTÍVEL E CONSUMO
 st.header("⛽ Combustível e Consumo")
@@ -183,6 +218,16 @@ if fuel_table:
     
     st.dataframe(df_fuel_filtered, use_container_width=True)
     st.write(f"📊 Mostrando {len(df_fuel_filtered)} de {len(df_fuel)} veículos com dados de combustível")
+    
+    # Consumo médio por tipo de combustível
+    st.subheader("⛽ Consumo Médio por Tipo de Combustível")
+    fuel_stats = df_fuel.groupby('Tipo Combustível')['Consumo por KM'].apply(
+        lambda x: pd.to_numeric(x, errors='coerce').mean()
+    ).round(2)
+    
+    for fuel_type, avg_consumption in fuel_stats.items():
+        if pd.notna(avg_consumption):
+            st.write(f"**{fuel_type}**: {avg_consumption} L/km")
 else:
     st.warning("Nenhum dado de combustível encontrado.")
 
@@ -194,7 +239,7 @@ with st.spinner('Carregando dados de localização...'):
     location_table = []
     
     # Busca detalhes de localização para alguns dispositivos
-    for i, vehicle in enumerate(vehicles[:80]):  # Limita a 10 para performance
+    for i, vehicle in enumerate(vehicles[:80]):
         if vehicle.get('device_id'):
             device_details = get_device_details(vehicle['device_id'])
             
@@ -226,47 +271,5 @@ if location_table:
     st.write(f"📊 Mostrando {len(df_location_filtered)} de {len(df_location)} dispositivos com localização")
 else:
     st.warning("Nenhum dado de localização encontrado.")
-
-# ESTATÍSTICAS GERAIS
-st.header("📊 Estatísticas Gerais")
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        label="Total de Veículos",
-        value=len(vehicles)
-    )
-
-with col2:
-    st.metric(
-        label="Total de Lojas", 
-        value=len(groups)
-    )
-
-with col3:
-    veiculos_com_motorista = sum(1 for v in vehicles if v.get('last_driver_name'))
-    st.metric(
-        label="Com Motorista",
-        value=veiculos_com_motorista
-    )
-
-with col4:
-    veiculos_sem_motorista = sum(1 for v in vehicles if not v.get('last_driver_name'))
-    st.metric(
-        label="Sem Motorista",
-        value=veiculos_sem_motorista
-    )
-
-# Consumo médio por tipo de combustível
-if fuel_table:
-    st.subheader("⛽ Consumo Médio por Tipo de Combustível")
-    fuel_stats = df_fuel.groupby('Tipo Combustível')['Consumo por KM'].apply(
-        lambda x: pd.to_numeric(x, errors='coerce').mean()
-    ).round(2)
-    
-    for fuel_type, avg_consumption in fuel_stats.items():
-        if pd.notna(avg_consumption):
-            st.write(f"**{fuel_type}**: {avg_consumption} L/km")
 
 st.success("✅ Dashboard carregado com sucesso!")
