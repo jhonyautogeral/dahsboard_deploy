@@ -9,11 +9,12 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.switch_page("app.py")
     st.stop()
 
-# Criar sidebar
-make_sidebar()
 
 # Configurar página
-# st.set_page_config(page_title="Dashboard Auto Geral", layout="wide")
+st.set_page_config(page_title="Dashboard Auto Geral", layout="wide")
+
+# Criar sidebar
+make_sidebar()
 
 # Conteúdo principal
 col1, col2 = st.columns([2, 1])
@@ -24,11 +25,31 @@ with col1:
     ### Bem-vindo ao sistema de métricas da Auto Geral
     
     **Principais funcionalidades disponíveis:**
-    -  Centro de Custos e Análises Financeiras
-    -  Indicadores de Entregas e Rotas
-    -  Mapas de Calor e Visualizações
-    -  Controle de Margens e Vendas
-    -  Gestão de Frota e Combustível
+    
+    **📊 Análises Financeiras e Custos:**
+    - Centro de Custos por categoria
+    - Custos de Entrega e análise de eficiência
+    - Análise de Custos Totais por loja
+    - Custo de Combustível da Frota
+    
+    **🚚 Gestão de Entregas e Logística:**
+    - Indicadores de Entregas (≤40min e >40min)
+    - Entrega Logística com análise de performance
+    - Quantidade de Entregas por Tipo
+    - Análise de Entregas e Rotas
+    
+    **📈 Análises de Vendas:**
+    - Vendas com Curva ABC/XYZ
+    - Vendas sem análise de curva
+    - Produtos Cruzados (Código Fraga)
+    
+    **🗺️ Visualizações e Mapas:**
+    - Mapas de Calor por horas
+    - Mapas de Calor por meses
+    
+    **🚗 Monitoramento de Frota:**
+    - Monitoramento de Veículos Cobli
+    - Abastecimento por Veículo
     """)
     
     # Métricas rápidas
