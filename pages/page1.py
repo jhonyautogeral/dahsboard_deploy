@@ -51,12 +51,6 @@ with col1:
     - Monitoramento de Veículos Cobli
     - Abastecimento por Veículo
     """)
-    
-    # Métricas rápidas
-    if st.session_state.get("user_info"):
-        user = st.session_state["user_info"]
-        st.success(f" Olá, **{user.get('name', 'Usuário')}**!")
-        st.info(f" Cargo: **{user.get('cargo', 'N/A')}**")
 
 with col2:
     # Logo da empresa
@@ -66,10 +60,11 @@ with col2:
     else:
         st.info("📸 Logo não encontrada")
     
-    # Status do sistema
-    st.markdown("###  Status do Sistema")
-    st.success("✅ Sistema Online")
-    st.info("🔄 Última atualização: Tempo real")
+    # Métricas rápidas
+    if st.session_state.get("user_info"):
+        user = st.session_state["user_info"]
+        st.success(f" Olá, **{user.get('name', 'Usuário')}**!")
+        st.info(f" Cargo: **{user.get('cargo', 'N/A')}**")
 
 # Rodapé
 st.markdown("---")
