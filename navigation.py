@@ -17,6 +17,7 @@ class AccessControl:
         "entrega_em_40.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "tipos_entrega.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
         "abastecimento_veic.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
+        "produto_cruzado_fraga.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
         "entrega_logistica_40.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
         "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"]
     }
@@ -32,6 +33,7 @@ class AccessControl:
         {"file": "mapa_calor.py", "label": "Mapa de Calor", "permitir": PERMISSIONS.get("mapa_calor.py")},
         {"file": "tipos_entrega.py", "label": "Quantidade de Entrega por Tipo", "permitir": PERMISSIONS.get("tipos_entrega.py")},
         {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("abastecimento_veic.py")},
+        {"file": "produto_cruzado_fraga.py", "label": "Produtos Cruzado Fraga", "permitir": PERMISSIONS.get("produto_cruzado_fraga.py")},
         {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
         {"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")},
 
