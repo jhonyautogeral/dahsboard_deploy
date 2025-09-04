@@ -10,3 +10,4 @@ proxy_server/init.bat
 proxy_server/proxy_server.py
 cloud-sql-proxy.x64.exe
 erpj-br-sql.json
+proxy_server/cloud-sql-proxy

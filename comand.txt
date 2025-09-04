@@ -1,13 +1,12 @@
 # Enviado para server
-scp -r C:/Users/jhonatan.novais/dahsboard_deploy/common_utils.py jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/dahsboard_deploy
-
+scp -r C:\Users\jhonatan.novais\dahsboard_deploy\app.py jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/dahsboard_deploy/
 
 C:/Users/jhonatan.novais/Desktop/fazer_deploy/dashboard_deploy/dockerfile
 
 docker run -p 9000:9000 deploy_dashboard_ngrok
 
 # Puxando do server
-scp -r  jonathannovais@10.50.1.252:/home/jonathannovais/Documentos//dashboard_deploy C:/Users/jhonatan.novais/Desktop/git_projeto_deploy/dashboard_deploy1
+scp -r  jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/dahsboard_deploy/proxy_server C:/Users/jhonatan.novais/dahsboard_deploy/proxy_server
 
 
 scp -r C:/Users/jhonatan.novais/dahsboard_deploy/proxy_server jonathannovais@10.50.1.252:/home/jonathannovais/Documentos/dahsboard_deploy/
