@@ -8,20 +8,17 @@ class AccessControl:
     """Controla acesso às páginas por cargo"""
     
     PERMISSIONS = {
-        "veiculos_cobli.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "custo_loja_sem_veiculo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "custo_entrega.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "custos.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "modo_venda_itens_curva.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "modo_vendas_sem_curva.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "mapa_calor.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "entrega_em_40.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "tipos_entrega.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"],
-        "abastecimento_veic.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
-        "produto_cruzado_fraga.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
-        "motorista_ocioso.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
-        "entrega_logistica_40.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio"],
-        "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software"]
+        "veiculos_cobli.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "custo_entrega.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "custos.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "modo_venda_itens_curva.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "modo_vendas_sem_curva.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "mapa_calor.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "entrega_em_40.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "tipos_entrega.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "abastecimento_veic.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio", "Gerente de Vendas"],
+        "entrega_logistica_40.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio", "Gerente de Vendas"],
+        "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"]
     }
     
     PAGES = [
