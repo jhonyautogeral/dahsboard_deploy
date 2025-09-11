@@ -37,9 +37,7 @@ def get_user_cargo(user_email: str) -> Optional[dict]:
     query = """
     SELECT ad.NOME, ad.CARGO, ad.E_MAIL  
     FROM acessos_dbf ad
-    WHERE CARGO IN ('Encarregado', 'Compras', 'Gestor', 'Sócio', 
-                   'Estagiário de TI', 'Desenvolvedora de Software')
-    AND ad.E_MAIL = %(email)s
+    WHERE ad.E_MAIL = %(email)s
     """
     
     try:
