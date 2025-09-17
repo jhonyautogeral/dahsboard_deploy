@@ -18,12 +18,14 @@ class AccessControl:
         "tipos_entrega.py": ["Gestor", "Encarregado", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
         "abastecimento_veic.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio", "Gerente de Vendas"],
         "entrega_logistica_40.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio", "Gerente de Vendas"],
-        "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"]
+        "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "proporcao_compras_transferencias.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"]
     }
     
     PAGES = [
         {"file": "page1.py", "label": "DASHBOARD E MÉTRICAS DA AUTO GERAL", "permitir": None},
         {"file": "veiculos_cobli.py", "label": "Monitora Veículos Cobli", "permitir": PERMISSIONS.get("veiculos_cobli.py")},
+        {"file": "proporcao_compras_transferencias.py", "label": "Monitora Veículos Cobli", "permitir": PERMISSIONS.get("proporcao_compras_transferencias.py")},
         {"file": "custo_loja_sem_veiculo.py", "label": "Análise de Despesas por Loja (SEM VEICULO)", "permitir": PERMISSIONS.get("custo_loja_sem_veiculo.py")},
         {"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
