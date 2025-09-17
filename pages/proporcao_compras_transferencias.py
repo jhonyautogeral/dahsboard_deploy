@@ -5,6 +5,12 @@ import matplotlib.ticker as ticker
 from sqlalchemy import create_engine
 from datetime import date
 
+# Proteção de acesso
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()
+
 def conectar_banco():
     """Cria conexão com MySQL"""
     config = st.secrets["connections"]["mysql"]
