@@ -126,13 +126,37 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         
         df_ROMANEIO = df_romaneios_raw.groupby(['LOJA', 'PERIODO']).size().reset_index(name='total_romaneios')
         
+        # QUERY 4: Detalhes dos Centro de Custo - comp_rate_ativ
+        query_comp_rate = """
+            SELECT DISTINCT
+                cvu.LOJA AS LOJA,
+                c.COMP_CODI AS COMPRA,
+                c.COMP_LOJA,
+                c.CADA_ATIV_ID AS CADASTRO_VEICULO,
+                cv.PLACA,
+                c.VALR_RATE AS VALOR_UNITARIO_CUSTO,
+                c.DSCR AS DESCRICAO,
+                a.CADASTRO,
+                a.VALOR_TOTAL_NOTA
+            FROM comp_rate_ativ c
+            LEFT JOIN compras_dbf a ON c.COMP_CODI = a.COMPRA AND c.COMP_LOJA = a.LOJA
+            LEFT JOIN cadastros_ativos ca ON c.CADA_ATIV_ID = ca.CADA_ATIV_ID 
+            LEFT JOIN cadastros_veiculos cv ON ca.CADA_VEIC_ID = cv.CADA_VEIC_ID
+            LEFT JOIN cadastros_veiculos_ultilizacao cvu ON ca.CADA_VEIC_ID = cvu.CADA_VEIC_ID
+            WHERE a.CADASTRO BETWEEN :data_inicio AND :data_fim
+            ORDER BY a.CADASTRO, c.COMP_LOJA
+        """
+        
+        df_comp_rate_ativ = pd.read_sql(text(query_comp_rate), engine_autogeral, params=params)
+        
         engine_autogeral.dispose()
-        return df_custo_entregadores, df_rate, df_ROMANEIO
+        return df_custo_entregadores, df_rate, df_ROMANEIO, df_comp_rate_ativ
         
     except Exception as e:
         st.error(f"Erro ao executar queries: {e}")
         engine_autogeral.dispose()
-        return None, None, None
+        return None, None, None, None
+
 
 def format_br_currency(value):
     """Formata valor para padrão brasileiro R$"""
@@ -167,7 +191,7 @@ def main():
     
     st.set_page_config(page_title="Dashboard Custos por Entrega", layout="wide")
     
-    st.title("📊 Dashboard - Custos por Entrega")
+    st.title("📊 Dashboard - Custos por Entrega e Tabela Centro de Custo")
     st.markdown("---")
     if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
@@ -218,20 +242,22 @@ def main():
     # Carregar dados
     if 'df_consolidado' not in st.session_state or st.session_state.get('dados_atualizados', False):
         with st.spinner(f'🔄 Carregando dados do período {data_inicio} até {data_fim}...'):
-            df_custo, df_rate, df_romaneio = gerar_dataframes_custos(
+            df_custo, df_rate, df_romaneio, df_comp_rate_ativ = gerar_dataframes_custos(
                 data_inicio=str(data_inicio), 
                 data_fim=str(data_fim)
             )
             
             if df_custo is not None:
                 st.session_state.df_consolidado = consolidar_custos_entrega(df_custo, df_rate, df_romaneio)
+                st.session_state.df_comp_rate_ativ = df_comp_rate_ativ
                 st.session_state.dados_atualizados = False
-                st.success(f"✅ Dados carregados com sucesso! Período: {data_inicio} até {data_fim}")
+                st.success(f"Dados carregados com sucesso! Período: {data_inicio} até {data_fim}")
             else:
-                st.error("❌ Erro ao carregar dados")
+                st.error("Erro ao carregar dados")
                 return
     
     df = st.session_state.df_consolidado
+    df_comp_rate = st.session_state.df_comp_rate_ativ
     
     # Mostrar informações do período na sidebar
     st.sidebar.markdown("---")
@@ -239,7 +265,7 @@ def main():
     if len(df) > 0:
         st.sidebar.info(f"**Total de registros:** {len(df)}")
     else:
-        st.sidebar.warning("⚠️ Nenhum dado encontrado para o período selecionado")
+        st.sidebar.warning("- Nenhum dado encontrado para o período selecionado")
     
     # KPIs principais
     col1, col2, col3, col4 = st.columns(4)
@@ -261,8 +287,8 @@ def main():
         st.metric("Custo Mediano/Entrega", format_br_currency(custo_mediano))
     
     st.markdown("---")
-    
-    # Tabelas primeiro - antes dos gráficos
+
+        # Tabelas primeiro - antes dos gráficos
     st.subheader("📋 Tabela Detalhada")
     
     # Preparar tabela formatada
@@ -301,12 +327,75 @@ def main():
     
     st.markdown("---")
     
+    # NOVA SEÇÃO: Detalhes do Centro de Custo - comp_rate_ativ
+    st.subheader("- Detalhes dos Centros de Custo - Rateio")
+    
+    # Filtros em 3 colunas
+    col1_filtro, col2_filtro, col3_filtro = st.columns(3)
+    
+    with col1_filtro:
+        lojas_disponiveis = ['Todas'] + sorted(df_comp_rate['COMP_LOJA'].dropna().unique().tolist())
+        filtro_loja = st.selectbox("Filtrar por Loja:", lojas_disponiveis)
+    
+    with col2_filtro:
+        descricoes_disponiveis = ['Todas'] + sorted(df_comp_rate['DESCRICAO'].dropna().unique().tolist())
+        filtro_descricao = st.selectbox("Filtrar por Descrição:", descricoes_disponiveis)
+    
+    with col3_filtro:
+        placas_disponiveis = ['Todas'] + sorted(df_comp_rate['PLACA'].dropna().unique().tolist())
+        filtro_placa = st.selectbox("Filtrar por Placa:", placas_disponiveis)
+    
+    # Aplicar filtros
+    df_filtrado = df_comp_rate.copy()
+    
+    if filtro_loja != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['COMP_LOJA'] == filtro_loja]
+    
+    if filtro_descricao != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['DESCRICAO'] == filtro_descricao]
+    
+    if filtro_placa != 'Todas':
+        df_filtrado = df_filtrado[df_filtrado['PLACA'] == filtro_placa]
+    
+    # Mostrar tabela filtrada
+    if len(df_filtrado) > 0:
+        # Formatar valores monetários na tabela
+        df_exibir = df_filtrado.copy()
+        df_exibir['VALOR_UNITARIO_CUSTO'] = df_exibir['VALOR_UNITARIO_CUSTO'].apply(
+            lambda x: format_br_currency(x) if pd.notna(x) else 'N/A'
+        )
+        df_exibir['VALOR_TOTAL_NOTA'] = df_exibir['VALOR_TOTAL_NOTA'].apply(
+            lambda x: format_br_currency(x) if pd.notna(x) else 'N/A'
+        )
+        
+        # Renomear colunas para exibição
+        colunas_exibir = {
+            'LOJA': 'Loja',
+            'COMPRA': 'Compra',
+            'COMP_LOJA': 'Loja Compra',
+            'CADASTRO_VEICULO': 'ID Veículo',
+            'PLACA': 'Placa',
+            'VALOR_UNITARIO_CUSTO': 'Valor Unitário',
+            'DESCRICAO': 'Descrição',
+            'CADASTRO': 'Data Cadastro',
+            'VALOR_TOTAL_NOTA': 'Valor Total Nota'
+        }
+        
+        df_exibir = df_exibir.rename(columns=colunas_exibir)
+        
+        st.dataframe(df_exibir, use_container_width=True, hide_index=True)
+        st.info(f"- Mostrando {len(df_filtrado)} registros")
+    else:
+        st.warning("- Nenhum registro encontrado com os filtros aplicados")
+    
+    st.markdown("---")
+    
     # Filtrar dados - excluir LOJA = 1 dos gráficos principais
     df_sem_loja1 = df[df['LOJA'] != 1].copy()
     df_loja1 = df[df['LOJA'] == 1].copy()
     
     # Gráficos por Loja - Custo Total por Mês (LOJA 1 até 12)
-    st.subheader("💰 Custo Total por Mês - Cada Loja")
+    st.subheader("- Custo Total por Mês - Cada Loja")
     
     # Criar gráficos para cada loja de 1 a 12
     lojas_disponiveis = sorted(df['LOJA'].unique())
@@ -355,7 +444,7 @@ def main():
                     st.info(f"Loja {loja}: Sem dados")
     
     # Segundo gráfico - Custo por Entrega por Mês - Cada Loja
-    st.subheader("📦 Custo por Entrega por Mês - Cada Loja")
+    st.subheader("- Custo por Entrega por Mês - Cada Loja")
     
     # Organizar em linhas de 2 gráficos
     for i in range(0, len(lojas_ate_12), 2):
@@ -395,15 +484,16 @@ def main():
             else:
                 with cols[j]:
                     st.info(f"Loja {loja}: Sem dados")
+    
     # Gráficos de comparação entregadores vs frota - separados
-    st.subheader("⚖️ Comparação: Custos Entregadores vs Frota")
+    st.subheader("- Comparação: Custos Entregadores vs Frota")
     
     # Preparar dados para entregadores
     df_entregadores = df.groupby(['LOJA', 'PERIODO_STR'])['custo_entregadores'].sum().reset_index()
     df_frota = df.groupby(['LOJA', 'PERIODO_STR'])['VALOR_CUSTO_LOJA'].sum().reset_index()
     
     # Gráfico de Entregadores
-    st.subheader("👥 Custos de Entregadores por Loja e Período")
+    st.subheader("- Custos de Entregadores por Loja e Período")
     
     # Criar cores alternadas para as barras
     cores_entregadores = []
