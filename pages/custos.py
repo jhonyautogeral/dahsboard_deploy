@@ -32,7 +32,7 @@ def obter_lojas_disponiveis():
     engine = criar_conexao()
     query = "SELECT DISTINCT COMP_LOJA FROM comp_rate_ativ ORDER BY COMP_LOJA"
     result = pd.read_sql_query(query, engine)
-    return result['COMP_LOJA'].tolist()
+    return result['LOJA'].tolist()
 
 def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
     """Consulta custos totais entre datas com filtros"""
@@ -40,7 +40,7 @@ def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descr
     
     if lojas_selecionadas:
         lojas_str = ','.join(map(str, lojas_selecionadas))
-        where_conditions.append(f"c.COMP_LOJA IN ({lojas_str})")
+        where_conditions.append(f"c.LOJA IN ({lojas_str})")
     
     if descricoes_selecionadas:
         descricoes_str = "','".join(descricoes_selecionadas)
@@ -270,7 +270,7 @@ def main():
         if filtros:
             st.info(f"📊 {len(df_filtrado)} registros filtrados por {' e '.join(filtros)}")
 
-        st.dataframe(df_filtrado.head(100), use_container_width=True)
+        st.dataframe(df_filtrado, use_container_width=True)
         
         # Resumos em tabs
         st.header("📋 Resumos Detalhados")
