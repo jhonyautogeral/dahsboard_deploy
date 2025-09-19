@@ -2,13 +2,14 @@ import streamlit as st
 from time import sleep
 from app import AuthManager
 from streamlit.runtime.scriptrunner import get_script_run_ctx
-from streamlit.source_util import get_pages
+from streamlit.runtime.state import session_state
 
 class AccessControl:
     """Controla acesso às páginas por cargo"""
     
     PERMISSIONS = {
         "veiculos_cobli.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "custo_entrega_entregadores.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
         "custo_entrega.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
         "custos.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
         "modo_venda_itens_curva.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
@@ -25,9 +26,10 @@ class AccessControl:
     PAGES = [
         {"file": "page1.py", "label": "DASHBOARD E MÉTRICAS DA AUTO GERAL", "permitir": None},
         {"file": "veiculos_cobli.py", "label": "Monitora Veículos Cobli", "permitir": PERMISSIONS.get("veiculos_cobli.py")},
-        {"file": "proporcao_compras_transferencias.py", "label": "Monitora Veículos Cobli", "permitir": PERMISSIONS.get("proporcao_compras_transferencias.py")},
+        {"file": "proporcao_compras_transferencias.py", "label": "Proporcao Compras/Transferencias", "permitir": PERMISSIONS.get("proporcao_compras_transferencias.py")},
         {"file": "custo_loja_sem_veiculo.py", "label": "Análise de Despesas por Loja (SEM VEICULO)", "permitir": PERMISSIONS.get("custo_loja_sem_veiculo.py")},
         {"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
+        {"file": "custo_entrega_entregadores.py", "label": "Custo Entregadores e Entrega", "permitir": PERMISSIONS.get("custo_entrega_entregadores.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
         {"file": "entrega_logistica_40.py", "label": "Entrega 40 Logística", "permitir": PERMISSIONS.get("entrega_logistica_40.py")},
         {"file": "modo_venda_itens_curva.py", "label": "Vendas intens e curva", "permitir": PERMISSIONS.get("modo_venda_itens_curva.py")},
@@ -37,7 +39,7 @@ class AccessControl:
         {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("abastecimento_veic.py")},
         {"file": "produto_cruzado_fraga.py", "label": "Produtos Cruzado Fraga", "permitir": PERMISSIONS.get("produto_cruzado_fraga.py")},
         {"file": "motorista_ocioso.py", "label": "Motoristas Ocioso", "permitir": PERMISSIONS.get("motorista_ocioso.py")},
-        {"file": "entrega_em_40.py", "label": "Indicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
+        {"file": "entrega_em_40.py", "label": "Endicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
         {"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")},
 
     ]
@@ -60,8 +62,8 @@ class Navigation:
         ctx = get_script_run_ctx()
         if not ctx:
             return "app"
-        pages = get_pages("")
-        return pages.get(ctx.page_script_hash, {}).get("page_name", "app")
+        pages = st.session_state.get("_pages", {})
+        return pages.get(ctx.page_script_hash, {}).get("page_name", "app") if pages else "app"
     
     def logout(self):
         """Executa logout do usuário"""
