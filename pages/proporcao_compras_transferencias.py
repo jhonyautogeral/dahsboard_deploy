@@ -5,12 +5,6 @@ import matplotlib.ticker as ticker
 from sqlalchemy import create_engine
 from datetime import date
 
-# Proteção de acesso
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    st.warning("Você não está logado. Redirecionando para a página de login...")
-    st.switch_page("app.py")
-    st.stop()
-
 def conectar_banco():
     """Cria conexão com MySQL"""
     config = st.secrets["connections"]["mysql"]
@@ -155,68 +149,79 @@ def criar_grafico_operacao(df):
     
     return fig
 
-# Interface Streamlit
-st.title('Proporção de Compras e Transferencias')
-
-with st.sidebar:
-    st.header('Filtros')
+def main():
+    """Função principal do aplicativo"""
+    # Proteção de acesso
+    if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+        st.warning("Você não está logado. Redirecionando para a página de login...")
+        st.switch_page("app.py")
+        st.stop()
     
-    data_inicio = st.date_input(
-        'Data de Início',
-        value=date.today().replace(day=1),
-        help='Selecione a data inicial do período'
-    )
-    
-    data_fim = st.date_input(
-        'Data Final',
-        value=date.today(),
-        help='Selecione a data final do período'
-    )
-    
-    aplicar_filtro = st.button('Aplicar Filtros', type='primary')
+    # Interface Streamlit
+    st.title('Proporção de Compras e Transferencias')
 
-st.markdown('---')
-
-# Validação das datas
-if data_inicio > data_fim:
-    st.error('A data de início não pode ser maior que a data final!')
-else:
-    if aplicar_filtro or 'df_pivot' not in st.session_state:
-        with st.spinner('Carregando dados...'):
-            try:
-                engine = conectar_banco()
-                df_compras = buscar_dados_compras(engine, data_inicio, data_fim)
-                
-                if df_compras.empty:
-                    st.warning('Nenhum dado encontrado para o período selecionado.')
-                else:
-                    df_filtrado = filtrar_mercadorias(df_compras)
-                    df_pivot = criar_tabela_pivot(df_filtrado)
-                    df_loja, df_operacao = agrupar_dados(df_filtrado)
-                    
-                    # Armazenar no session_state
-                    st.session_state.df_pivot = df_pivot
-                    st.session_state.df_loja = df_loja
-                    st.session_state.df_operacao = df_operacao
-                    
-                    st.success(f'Dados carregados! Período: {data_inicio} a {data_fim}')
-                    
-            except Exception as e:
-                st.error(f'Erro ao carregar dados: {str(e)}')
-
-    # Exibir dados
-    if all(key in st.session_state for key in ['df_pivot', 'df_loja', 'df_operacao']):
+    with st.sidebar:
+        st.header('Filtros')
         
-        st.header('Dados por Loja, Operação e Mês')
-        st.dataframe(st.session_state.df_pivot, width='stretch')
+        data_inicio = st.date_input(
+            'Data de Início',
+            value=date.today().replace(day=1),
+            help='Selecione a data inicial do período'
+        )
+        
+        data_fim = st.date_input(
+            'Data Final',
+            value=date.today(),
+            help='Selecione a data final do período'
+        )
+        
+        aplicar_filtro = st.button('Aplicar Filtros', type='primary')
 
-        fig1 = criar_grafico_loja_operacao(st.session_state.df_loja)
-        st.pyplot(fig1)
+    st.markdown('---')
 
-        st.markdown('---')
+    # Validação das datas
+    if data_inicio > data_fim:
+        st.error('A data de início não pode ser maior que a data final!')
+    else:
+        if aplicar_filtro or 'df_pivot' not in st.session_state:
+            with st.spinner('Carregando dados...'):
+                try:
+                    engine = conectar_banco()
+                    df_compras = buscar_dados_compras(engine, data_inicio, data_fim)
+                    
+                    if df_compras.empty:
+                        st.warning('Nenhum dado encontrado para o período selecionado.')
+                    else:
+                        df_filtrado = filtrar_mercadorias(df_compras)
+                        df_pivot = criar_tabela_pivot(df_filtrado)
+                        df_loja, df_operacao = agrupar_dados(df_filtrado)
+                        
+                        # Armazenar no session_state
+                        st.session_state.df_pivot = df_pivot
+                        st.session_state.df_loja = df_loja
+                        st.session_state.df_operacao = df_operacao
+                        
+                        st.success(f'Dados carregados! Período: {data_inicio} a {data_fim}')
+                        
+                except Exception as e:
+                    st.error(f'Erro ao carregar dados: {str(e)}')
 
-        st.header('Dados agrupados por Operação')
-        st.dataframe(st.session_state.df_operacao, width='stretch')
+        # Exibir dados
+        if all(key in st.session_state for key in ['df_pivot', 'df_loja', 'df_operacao']):
+            
+            st.header('Dados por Loja, Operação e Mês')
+            st.dataframe(st.session_state.df_pivot, use_container_width=True)
 
-        fig2 = criar_grafico_operacao(st.session_state.df_operacao)
-        st.pyplot(fig2)
+            fig1 = criar_grafico_loja_operacao(st.session_state.df_loja)
+            st.pyplot(fig1)
+
+            st.markdown('---')
+
+            st.header('Dados agrupados por Operação')
+            st.dataframe(st.session_state.df_operacao, use_container_width=True)
+
+            fig2 = criar_grafico_operacao(st.session_state.df_operacao)
+            st.pyplot(fig2)
+
+if __name__ == "__main__":
+    main()
