@@ -156,8 +156,10 @@ def main():
         st.warning("Você não está logado. Redirecionando para a página de login...")
         st.switch_page("app.py")
         st.stop()
+
+    if st.sidebar.button("Voltar"):
+        st.switch_page("app.py")
     
-    # Interface Streamlit
     st.title('Proporção de Compras e Transferencias')
 
     with st.sidebar:
