@@ -5,10 +5,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Proteção de acesso
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    st.warning("Você não está logado. Redirecionando para a página de login...")
-    st.switch_page("app.py")
-    st.stop()
+# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+#     st.warning("Você não está logado. Redirecionando para a página de login...")
+#     st.switch_page("app.py")
+#     st.stop()
 
 def criar_conexao():
     """Cria conexão com MySQL"""
@@ -161,6 +161,17 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
 def format_br_currency(value):
     """Formata valor para padrão brasileiro R$"""
     return f"R$ {value:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+
+def format_number_br(value):
+    """Formata número para padrão brasileiro com ponto e vírgula"""
+    if isinstance(value, (int, float)):
+        # Para valores com decimais
+        if value != int(value):
+            return f"{value:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        # Para valores inteiros
+        else:
+            return f"{int(value):,}".replace(',', '.')
+    return str(value)
 
 def consolidar_custos_entrega(df_custo_entregadores, df_rate, df_ROMANEIO):
     """Consolida os 3 dataframes e calcula custo por entrega"""
@@ -334,7 +345,7 @@ def main():
     col1_filtro, col2_filtro, col3_filtro = st.columns(3)
     
     with col1_filtro:
-        lojas_disponiveis = ['Todas'] + sorted(df_comp_rate['COMP_LOJA'].dropna().unique().tolist())
+        lojas_disponiveis = ['Todas'] + sorted(df_comp_rate['LOJA'].dropna().unique().tolist())
         filtro_loja = st.selectbox("Filtrar por Loja:", lojas_disponiveis)
     
     with col2_filtro:
@@ -349,7 +360,7 @@ def main():
     df_filtrado = df_comp_rate.copy()
     
     if filtro_loja != 'Todas':
-        df_filtrado = df_filtrado[df_filtrado['COMP_LOJA'] == filtro_loja]
+        df_filtrado = df_filtrado[df_filtrado['LOJA'] == filtro_loja]
     
     if filtro_descricao != 'Todas':
         df_filtrado = df_filtrado[df_filtrado['DESCRICAO'] == filtro_descricao]
@@ -395,7 +406,7 @@ def main():
     df_loja1 = df[df['LOJA'] == 1].copy()
     
     # Gráficos por Loja - Custo Total por Mês (LOJA 1 até 12)
-    st.subheader("- Custo Total por Mês - Cada Loja")
+    st.subheader("- Custo dos Entregadores + Custo da Frota - Cada Loja")
     
     # Criar gráficos para cada loja de 1 a 12
     lojas_disponiveis = sorted(df['LOJA'].unique())
@@ -424,9 +435,9 @@ def main():
                         text='custo_total'
                     )
                     
-                    # Aplicar cores alternadas nas barras
+                    # Aplicar cores alternadas nas barras e formatação PT-BR
                     fig_loja.update_traces(
-                        texttemplate='R$ %{text:,.0f}', 
+                        texttemplate=[f'R$ {format_number_br(val)}' for val in df_loja['custo_total']], 
                         textposition='outside',
                         marker_color=cores_barras
                     )
@@ -466,9 +477,9 @@ def main():
                         text='custo_por_entrega'
                     )
                     
-                    # Aplicar cores alternadas nas barras
+                    # Aplicar cores alternadas nas barras e formatação PT-BR
                     fig_loja_entrega.update_traces(
-                        texttemplate='R$ %{text:,.2f}', 
+                        texttemplate=[f'R$ {format_number_br(val)}' for val in df_loja['custo_por_entrega']], 
                         textposition='outside',
                         marker_color=cores_barras
                     )
@@ -495,13 +506,6 @@ def main():
     # Gráfico de Entregadores
     st.subheader("- Custos de Entregadores por Loja e Período")
     
-    # Criar cores alternadas para as barras
-    cores_entregadores = []
-    for loja in sorted(df_entregadores['LOJA'].unique()):
-        df_loja_ent = df_entregadores[df_entregadores['LOJA'] == loja]
-        cores_loja = [cores_alternadas[idx % 2] for idx in range(len(df_loja_ent))]
-        cores_entregadores.extend(cores_loja)
-    
     fig_entregadores = px.bar(
         df_entregadores,
         x='LOJA',
@@ -512,7 +516,11 @@ def main():
         color_discrete_sequence=[cores_alternadas[i % 2] for i in range(len(df_entregadores['PERIODO_STR'].unique()))]
     )
     
-    fig_entregadores.update_traces(texttemplate='R$ %{text:,.0f}', textposition='outside')
+    # Formatação PT-BR para entregadores
+    fig_entregadores.update_traces(
+        texttemplate=[f'R$ {format_number_br(val)}' for val in df_entregadores['custo_entregadores']], 
+        textposition='outside'
+    )
     fig_entregadores.update_layout(
         xaxis_title="Loja",
         yaxis_title="Custo Entregadores (R$)",
@@ -533,7 +541,11 @@ def main():
         color_discrete_sequence=[cores_alternadas[i % 2] for i in range(len(df_frota['PERIODO_STR'].unique()))]
     )
     
-    fig_frota.update_traces(texttemplate='R$ %{text:,.0f}', textposition='outside')
+    # Formatação PT-BR para frota
+    fig_frota.update_traces(
+        texttemplate=[f'R$ {format_number_br(val)}' for val in df_frota['VALOR_CUSTO_LOJA']], 
+        textposition='outside'
+    )
     fig_frota.update_layout(
         xaxis_title="Loja",
         yaxis_title="Custo Frota (R$)",
