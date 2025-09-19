@@ -28,7 +28,7 @@ class AccessControl:
         {"file": "veiculos_cobli.py", "label": "Monitora Veículos Cobli", "permitir": PERMISSIONS.get("veiculos_cobli.py")},
         {"file": "proporcao_compras_transferencias.py", "label": "Proporcao Compras Transferencias", "permitir": PERMISSIONS.get("proporcao_compras_transferencias.py")},
         {"file": "custo_loja_sem_veiculo.py", "label": "Análise de Despesas por Loja (SEM VEICULO)", "permitir": PERMISSIONS.get("custo_loja_sem_veiculo.py")},
-        {"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
+        #{"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
         {"file": "custo_entrega_entregadores.py", "label": "Custo Entregadores e Entrega", "permitir": PERMISSIONS.get("custo_entrega_entregadores.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
         {"file": "entrega_logistica_40.py", "label": "Entrega 40 Logística", "permitir": PERMISSIONS.get("entrega_logistica_40.py")},
