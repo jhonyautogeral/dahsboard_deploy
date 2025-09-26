@@ -34,7 +34,7 @@ def obter_lojas_disponiveis():
     engine = criar_conexao()
     query = "SELECT DISTINCT LOJA FROM comp_rate_ativ ORDER BY LOJA"
     result = pd.read_sql_query(query, engine)
-    return result['COMP_LOJA'].tolist()
+    return result['LOJA'].tolist()
 
 def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
     """Consulta custos totais entre datas com filtros"""
