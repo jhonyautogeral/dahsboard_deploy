@@ -326,20 +326,20 @@ def main():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.success(f"**Loja Mais Despesas**\n\nLoja {loja_top.iloc[0]}\n\nR$ {loja_top['TOTAL']:,.2f}\n({loja_top['QUANTIDADE']} registros)")
+            st.success(f"**Loja Mais Despesas**\n\nLoja {loja_top.iloc[0]}\n\nR$ {loja_top['TOTAL']:,.2f}\n\n({loja_top['QUANTIDADE']} registros)")
         
         
         with col2:
-            st.info(f"**Custo Principal:**\n{str(desc_top.iloc[0])[:25]}\n\nR$ {desc_top['TOTAL']:,.2f}\n({desc_top['QUANTIDADE']} ocorrências)")
+            st.info(f"**Custo Principal:**\n{str(desc_top.iloc[0])[:25]}\n\nR$ {desc_top['TOTAL']:,.2f}\n\n({desc_top['QUANTIDADE']} ocorrências)")
         
         with col3:
             if cv_diario > 50:
-                st.error(f"📊 **Variabilidade**\nAlta variação diária\nCV: {cv_diario:.1f}%\n⚠️ Instável")
+                st.error(f"📊 **Variabilidade**\nAlta variação diária\n\nCV: {cv_diario:.1f}%\n⚠️ Instável")
             elif cv_diario > 25:
-                st.warning(f"📊 **Variabilidade**\nModerada variação\nCV: {cv_diario:.1f}%\n⚡ Moderada")
+                st.warning(f"📊 **Variabilidade**\nModerada variação\n\nCV: {cv_diario:.1f}%\n⚡ Moderada")
             else:
-                st.success(f"📊 **Variabilidade**\nBaixa variação diária\nCV: {cv_diario:.1f}%\n✅ Estável")
-        
+                st.success(f"📊 **Variabilidade**\nBaixa variação diária\n\nCV: {cv_diario:.1f}%\n✅ Estável")
+
         # Segunda linha de insights
         st.markdown("---")
         col1, col2, col3, col4 = st.columns(4)
