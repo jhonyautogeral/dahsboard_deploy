@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 import io
 
 # Proteção de acesso
-# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-#     st.warning("Você não está logado. Redirecionando para a página de login...")
-#     st.switch_page("app.py")
-#     st.stop()
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()
 
 @st.cache_resource
 def criar_conexao():
