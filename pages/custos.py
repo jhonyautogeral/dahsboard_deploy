@@ -42,7 +42,7 @@ def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descr
     
     if lojas_selecionadas:
         lojas_str = ','.join(map(str, lojas_selecionadas))
-        where_conditions.append(f"c.LOJA IN ({lojas_str})")
+        where_conditions.append(f"c.COMP_LOJA IN ({lojas_str})")
     
     if descricoes_selecionadas:
         descricoes_str = "','".join(descricoes_selecionadas)
