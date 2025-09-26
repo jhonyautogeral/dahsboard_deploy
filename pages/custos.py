@@ -20,7 +20,7 @@ def criar_conexao():
            f"{config['host']}:{config['port']}/{config['database']}")
     return create_engine(url)
 
-@st.cache_data(ttl=300)  # Cache por 5 minutos
+@st.cache_data(ttl=300)
 def obter_descricoes_disponiveis():
     """Obtém todas as descrições disponíveis"""
     engine = criar_conexao()
@@ -28,17 +28,15 @@ def obter_descricoes_disponiveis():
     result = pd.read_sql_query(query, engine)
     return result['DSCR'].tolist()
 
-@st.cache_data(ttl=300)  # Cache por 5 minutos
+@st.cache_data(ttl=300)
 def obter_lojas_disponiveis():
     """Obtém todas as lojas disponíveis"""
     engine = criar_conexao()
     query = """
         SELECT DISTINCT cvu.LOJA 
-        FROM
-	        cadastros_veiculos_ultilizacao cvu
-            ORDER BY cvu.LOJA
+        FROM cadastros_veiculos_ultilizacao cvu
+        ORDER BY cvu.LOJA
     """
-
     result = pd.read_sql_query(query, engine)
     return result['LOJA'].tolist()
 
@@ -76,15 +74,45 @@ def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descr
     engine = criar_conexao()
     return pd.read_sql_query(query, engine)
 
+# Nova função para buscar dados de TODAS as lojas (sem filtro de loja) para o gráfico comparativo
+def consulta_custos_todas_lojas(data_inicio, data_fim, descricoes_selecionadas=None):
+    """Consulta custos de TODAS as lojas para o gráfico comparativo"""
+    where_conditions = [f"a.CADASTRO BETWEEN '{data_inicio}' AND '{data_fim}'"]
+    
+    if descricoes_selecionadas:
+        descricoes_str = "','".join(descricoes_selecionadas)
+        where_conditions.append(f"c.DSCR IN ('{descricoes_str}')")
+    
+    query = f"""
+    SELECT DISTINCT
+        cvu.LOJA AS LOJA,
+        c.VALR_RATE AS VALOR_UNITARIO_CUSTO
+    FROM comp_rate_ativ c
+    LEFT JOIN compras_dbf a ON c.COMP_CODI = a.COMPRA AND c.COMP_LOJA = a.LOJA
+    LEFT JOIN cadastros_ativos ca ON c.CADA_ATIV_ID = ca.CADA_ATIV_ID 
+    LEFT JOIN cadastros_veiculos cv ON ca.CADA_VEIC_ID = cv.CADA_VEIC_ID
+    LEFT JOIN cadastros_veiculos_ultilizacao cvu ON ca.CADA_VEIC_ID = cvu.CADA_VEIC_ID
+    WHERE {' AND '.join(where_conditions)}
+    ORDER BY cvu.LOJA 
+    """
+    
+    engine = criar_conexao()
+    return pd.read_sql_query(query, engine)
+
 def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
-    """Processa dados de custos totais"""
+    """Processa dados de custos com filtros + dados de todas as lojas"""
+    # Dados filtrados
     df = consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas, descricoes_selecionadas)
+    
+    # Dados de TODAS as lojas (para gráfico comparativo)
+    df_todas_lojas = consulta_custos_todas_lojas(data_inicio, data_fim, descricoes_selecionadas)
     
     if df.empty:
         return None
     
     # Remove duplicatas
     df = df.drop_duplicates(subset=['LOJA', 'CADASTRO', 'VALOR_UNITARIO_CUSTO'])
+    df_todas_lojas = df_todas_lojas.dropna(subset=['LOJA'])
     
     # Preparar dados
     df['CADASTRO'] = pd.to_datetime(df['CADASTRO'])
@@ -95,6 +123,7 @@ def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descr
     resumos = {
         'original': df,
         'por_loja': df.groupby('LOJA')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index(),
+        'por_loja_todas': df_todas_lojas.groupby('LOJA')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index(),
         'por_dia': df.groupby('DATA')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index(),
         'por_mes': df.groupby('MES_ANO')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index(),
         'por_desc': df.groupby('DESCRICAO')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index(),
@@ -102,7 +131,7 @@ def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descr
     }
     
     # Renomear colunas
-    for key in ['por_loja', 'por_dia', 'por_mes', 'por_desc', 'por_ativ']:
+    for key in ['por_loja', 'por_loja_todas', 'por_dia', 'por_mes', 'por_desc', 'por_ativ']:
         resumos[key].columns = [resumos[key].columns[0], 'TOTAL', 'MEDIA', 'QUANTIDADE']
     
     # Converter MES_ANO para string
@@ -120,29 +149,54 @@ def gerar_cores_neutrals(num_items):
     ]
     return (cores_base * ((num_items // len(cores_base)) + 1))[:num_items]
 
-def gerar_grafico_custos(dados, tipo_grafico, tipo_analise):
+def gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas=None):
     """Gera gráfico baseado nas seleções"""
     if tipo_analise == "Por Loja":
-        df_plot = dados['por_loja'].sort_values('LOJA')
+        # SEMPRE usa dados de TODAS as lojas para comparação
+        df_plot = dados['por_loja_todas'].sort_values('LOJA')
         cores = gerar_cores_neutrals(len(df_plot))
         
         fig = go.Figure()
+        
+        # Adiciona barras com destaque para lojas selecionadas
         for i, row in df_plot.iterrows():
+            loja_num = row['LOJA']
+            # Destaca lojas selecionadas com opacidade diferente
+            opacity = 1.0 if not lojas_selecionadas or loja_num in lojas_selecionadas else 0.4
+            
             fig.add_trace(go.Bar(
-                x=[row['LOJA']], y=[row['TOTAL']],
-                name=f'Loja {row["LOJA"]}',
-                marker_color=cores[i],
+                x=[f'Loja {loja_num}'],
+                y=[row['TOTAL']],
+                name=f'Loja {loja_num}',
+                marker_color=cores[i % len(cores)],
+                opacity=opacity,
                 text=[f'R$ {row["TOTAL"]:,.2f}'],
-                textposition='auto'
+                textposition='auto',
+                showlegend=False
             ))
         
         fig.update_layout(
-            title='Centro de Custo por Loja',
-            xaxis_title='Loja', yaxis_title='Valor Total (R$)'
+            title='Centro de Custo por Loja (Todas as Lojas)',
+            xaxis_title='Loja',
+            yaxis_title='Valor Total (R$)',
+            showlegend=False,
+            height=500
         )
+        
+        # Adiciona anotação se há filtro de loja
+        if lojas_selecionadas:
+            lojas_texto = ', '.join([str(l) for l in lojas_selecionadas])
+            fig.add_annotation(
+                text=f"Lojas filtradas destacadas: {lojas_texto}",
+                xref="paper", yref="paper",
+                x=0.5, y=1.05,
+                showarrow=False,
+                font=dict(size=12, color="gray")
+            )
+        
         return fig
     
-    # Outros tipos de análise
+    # Outros tipos de análise (usa dados filtrados)
     df_map = {
         "Por Dia": (dados['por_dia'], 'DATA', 'Centro de Custo por Dia'),
         "Por Mês": (dados['por_mes'], 'MES', 'Centro de Custo por Mês')
@@ -179,7 +233,7 @@ def main():
     with col2:
         data_fim = st.date_input("Data Fim", value=datetime.now())
     
-    # Obter opções com tratamento de erro
+    # Obter opções
     try:
         descricoes_disponiveis = obter_descricoes_disponiveis()
         lojas_disponiveis = obter_lojas_disponiveis()
@@ -190,12 +244,16 @@ def main():
     
     # Filtros
     lojas_selecionadas = st.sidebar.multiselect(
-        "Selecionar Lojas", options=lojas_disponiveis, default=[],
-        help="Deixe vazio para mostrar todas as lojas"
+        "Filtrar Dados por Loja(s)",
+        options=lojas_disponiveis,
+        default=[],
+        help="Filtra os dados gerais. O gráfico 'Por Loja' sempre mostra todas as lojas."
     )
     
     descricoes_selecionadas = st.sidebar.multiselect(
-        "Selecionar Descrições", options=descricoes_disponiveis, default=[],
+        "Selecionar Descrições",
+        options=descricoes_disponiveis,
+        default=[],
         help="Deixe vazio para mostrar todas as descrições"
     )
     
@@ -204,11 +262,11 @@ def main():
     tipo_analise = st.sidebar.selectbox("Tipo de Análise", ["Por Loja", "Por Dia", "Por Mês"])
     tipo_grafico = st.sidebar.selectbox("Tipo de Gráfico", ["Barras"])
     
-    # Processamento de dados
+    # Processamento
     with st.spinner("Carregando dados..."):
         try:
             dados = processar_dados_custos(
-                data_inicio.strftime('%Y-%m-%d'), 
+                data_inicio.strftime('%Y-%m-%d'),
                 data_fim.strftime('%Y-%m-%d'),
                 lojas_selecionadas or None,
                 descricoes_selecionadas or None
@@ -222,8 +280,11 @@ def main():
             st.error(f"Erro ao processar dados: {e}")
             return
         
-        # Métricas principais
+        # Métricas principais (usa dados filtrados)
         st.header("📈 Resumo Geral")
+        if lojas_selecionadas:
+            st.info(f"📍 Dados filtrados para loja(s): {', '.join(map(str, lojas_selecionadas))}")
+        
         col1, col2, col3, col4 = st.columns(4)
         
         total_geral = dados['original']['VALOR_UNITARIO_CUSTO'].sum()
@@ -233,24 +294,24 @@ def main():
         lojas_ativas = dados['original']['LOJA'].nunique()
         
         with col1:
-            st.metric("Centro de Custo Total Geral", f"R$ {total_geral:,.2f}")
+            st.metric("Centro de Custo Total", f"R$ {total_geral:,.2f}")
         with col2:
             st.metric("Mediana", f"R$ {mediana_geral:,.2f}")
             st.caption(f"📊 Média: R$ {media_geral:,.2f}")
         with col3:
             st.metric("Registros", f"{total_registros:,}")
         with col4:
-            st.metric("Lojas Ativas", lojas_ativas)
+            st.metric("Lojas nos Dados", lojas_ativas)
 
-        # Análise Visual Principal
+        # Gráfico Principal
         st.header("📊 Análise Visual Principal")
         try:
-            fig_principal = gerar_grafico_custos(dados, tipo_grafico, tipo_analise)
+            fig_principal = gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas)
             st.plotly_chart(fig_principal, use_container_width=True)
         except Exception as e:
             st.error(f"Erro ao gerar gráfico: {e}")
         
-        # Dados Detalhados com filtros
+        # Dados Detalhados
         st.header("📋 Dados Detalhados")
         col1, col2 = st.columns(2)
 
@@ -272,21 +333,18 @@ def main():
                 df_filtrado['DESCRICAO'].str.contains(filtro_desc, case=False, na=False)
             ]
 
-        # Info dos filtros
-        filtros = []
-        if filtro_placa: filtros.append(f"Placa: '{filtro_placa}'")
-        if filtro_desc: filtros.append(f"Descrição: '{filtro_desc}'")
-        
-        if filtros:
-            st.info(f"📊 {len(df_filtrado)} registros filtrados por {' e '.join(filtros)}")
+        if filtro_placa or filtro_desc:
+            st.info(f"📊 {len(df_filtrado)} registros encontrados")
 
         st.dataframe(df_filtrado.head(100), use_container_width=True)
         
-        # Resumos em tabs
+        # Resumos
         st.header("📋 Resumos Detalhados")
         tab1, tab2, tab3, tab4 = st.tabs(["Por Loja", "Por Descrição", "Por Atividade", "Por Dia"])
         
         with tab1:
+            if lojas_selecionadas:
+                st.caption("📍 Mostrando dados das lojas filtradas")
             st.dataframe(dados['por_loja'], use_container_width=True)
         with tab2:
             st.dataframe(dados['por_desc'], use_container_width=True)
@@ -295,122 +353,13 @@ def main():
         with tab4:
             st.dataframe(dados['por_dia'], use_container_width=True)
         
-        # Insights Inteligentes
-        st.header("💡 Insights Inteligentes")
-        
-        # Calcular insights avançados
-        df = dados['original']
-        
-        # Top performers Maiores custos
-        loja_top = dados['por_loja'].loc[dados['por_loja']['TOTAL'].idxmax()]
-        dia_top = dados['por_dia'].loc[dados['por_dia']['TOTAL'].idxmax()]
-        desc_top = dados['por_desc'].loc[dados['por_desc']['TOTAL'].idxmax()]
-        
-        # Análises estatísticas
-        custo_medio_geral = df['VALOR_UNITARIO_CUSTO'].mean()
-        mediana_custos = df['VALOR_UNITARIO_CUSTO'].median()
-        desvio_padrao = df['VALOR_UNITARIO_CUSTO'].std()
-        
-
-        # Concentração de custos (Pareto)
-        desc_sorted = dados['por_desc'].sort_values('TOTAL', ascending=False)
-        total_geral = desc_sorted['TOTAL'].sum()
-        desc_sorted['PERC_ACUMULADO'] = (desc_sorted['TOTAL'].cumsum() / total_geral * 100)
-        top_80_perc = desc_sorted[desc_sorted['PERC_ACUMULADO'] <= 80]
-        
-        # Variabilidade por período
-        variacao_diaria = dados['por_dia']['TOTAL'].std()
-        cv_diario = (variacao_diaria / dados['por_dia']['TOTAL'].mean()) * 100
-        
-        # Layout dos insights
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.success(f"**Loja Mais Despesas**\n\nLoja {loja_top.iloc[0]}\n\nR$ {loja_top['TOTAL']:,.2f}\n\n({loja_top['QUANTIDADE']} registros)")
-        
-        
-        with col2:
-            st.info(f"**Custo Principal:**\n{str(desc_top.iloc[0])[:25]}\n\nR$ {desc_top['TOTAL']:,.2f}\n\n({desc_top['QUANTIDADE']} ocorrências)")
-        
-        with col3:
-            if cv_diario > 50:
-                st.error(f"📊 **Variabilidade**\nAlta variação diária\n\nCV: {cv_diario:.1f}%\n⚠️ Instável")
-            elif cv_diario > 25:
-                st.warning(f"📊 **Variabilidade**\nModerada variação\n\nCV: {cv_diario:.1f}%\n⚡ Moderada")
-            else:
-                st.success(f"📊 **Variabilidade**\nBaixa variação diária\n\nCV: {cv_diario:.1f}%\n✅ Estável")
-
-        # Segunda linha de insights
-        st.markdown("---")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            pareto_items = len(top_80_perc)
-            pareto_perc = (pareto_items / len(dados['por_desc'])) * 100
-            st.info(f"📈 **Regra 80/20**\n{pareto_items} descrições\n({pareto_perc:.0f}% do total)\ngeram 80% dos custos")
-        
-        
-        with col2:
-            # Tendência (comparar primeira e segunda metade do período)
-            df_sorted = dados['por_dia'].sort_values('DATA')
-            meio = len(df_sorted) // 2
-            primeira_metade = df_sorted.iloc[:meio]['TOTAL'].mean()
-            segunda_metade = df_sorted.iloc[meio:]['TOTAL'].mean()
-            variacao = ((segunda_metade - primeira_metade) / primeira_metade) * 100
-            
-            if variacao > 10:
-                st.success(f"📈 **Tendência**\nCrescimento de\n{variacao:.1f}%\n🚀 Em alta")
-            elif variacao < -10:
-                st.error(f"📉 **Tendência**\nQueda de\n{abs(variacao):.1f}%\n📉 Em baixa")
-            else:
-                st.info(f"📊 **Tendência**\nVariação de\n{variacao:.1f}%\n➡️ Estável")
-        
-        # Alertas e Recomendações
-        st.markdown("---")
-        st.subheader("🚨 Alertas e Recomendações")
-        
-        alertas = []
-        recomendacoes = []
-        
-        
-        # Mostrar alertas
-        if alertas:
-            for alerta in alertas:
-                st.warning(alerta)
-        else:
-            st.success("✅ **Nenhum alerta crítico identificado**")
-        
-        # Mostrar recomendações
-        if recomendacoes:
-            st.markdown("**💡 Recomendações:**")
-            for rec in recomendacoes:
-                st.markdown(f"- {rec}")
-        
-        # Ranking das lojas
-        st.markdown("---")
-        st.subheader("🏆 Ranking de Performance")
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("**3 Lojas (Menor Custo Médio)**")
-            top3_eficientes = dados['por_loja'].nsmallest(3, 'MEDIA')
-            for i, row in top3_eficientes.iterrows():
-                medal = ["🥇", "🥈", "🥉"][i] if i < 3 else "🏅"
-                st.success(f"{medal} Loja {row.iloc[0]} - R$ {row['MEDIA']:,.2f} (média)")
-        
-        with col2:
-            st.markdown("**3 Lojas (Maior Custo Médio)**")
-            bottom3 = dados['por_loja'].nlargest(3, 'MEDIA')
-            for i, row in bottom3.iterrows():
-                st.error(f"🔴 Loja {row.iloc[0]} - R$ {row['MEDIA']:,.2f} (média)")
-        
         # Download
         st.header("💾 Download")
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             dados['original'].to_excel(writer, sheet_name='Dados', index=False)
-            dados['por_loja'].to_excel(writer, sheet_name='Por Loja', index=False)
+            dados['por_loja'].to_excel(writer, sheet_name='Por Loja Filtrada', index=False)
+            dados['por_loja_todas'].to_excel(writer, sheet_name='Todas as Lojas', index=False)
         buffer.seek(0)
 
         st.download_button(
