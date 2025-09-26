@@ -275,7 +275,7 @@ def main():
             )
             
             if dados is None:
-                st.error("❌ Nenhum dado encontrado para o período selecionado.")
+                st.error(" Nenhum dado encontrado para o período selecionado.")
                 return
             
         except Exception as e:
@@ -338,7 +338,7 @@ def main():
             ]
 
         if filtro_placa or filtro_desc:
-            st.info(f"📊 {len(df_filtrado)} registros encontrados")
+            st.info(f" {len(df_filtrado)} registros encontrados")
 
         st.dataframe(df_filtrado.head(100), width='stretch')
         
