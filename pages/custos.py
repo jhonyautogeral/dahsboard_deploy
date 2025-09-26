@@ -34,7 +34,7 @@ def obter_lojas_disponiveis():
     engine = criar_conexao()
     query = "SELECT DISTINCT LOJA FROM comp_rate_ativ ORDER BY LOJA"
     result = pd.read_sql_query(query, engine)
-    return result['LOJA'].tolist()
+    return result['COMP_LOJA'].tolist()
 
 def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
     """Consulta custos totais entre datas com filtros"""
@@ -64,7 +64,7 @@ def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descr
     LEFT JOIN cadastros_veiculos cv ON ca.CADA_VEIC_ID = cv.CADA_VEIC_ID
     LEFT JOIN cadastros_veiculos_ultilizacao cvu ON ca.CADA_VEIC_ID = cvu.CADA_VEIC_ID
     WHERE {' AND '.join(where_conditions)}
-    ORDER BY a.CADASTRO, c.COMP_LOJA
+    ORDER BY a.CADASTRO, c.LOJA
     """
     
     engine = criar_conexao()
