@@ -7,10 +7,10 @@ from datetime import datetime, timedelta
 import io
 
 # Proteção de acesso
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    st.warning("Você não está logado. Redirecionando para a página de login...")
-    st.switch_page("app.py")
-    st.stop()
+# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+#     st.warning("Você não está logado. Redirecionando para a página de login...")
+#     st.switch_page("app.py")
+#     st.stop()
 
 @st.cache_resource
 def criar_conexao():
@@ -275,7 +275,7 @@ def main():
             )
             
             if dados is None:
-                st.error(" Nenhum dado encontrado para o período selecionado.")
+                st.error("❌ Nenhum dado encontrado para o período selecionado.")
                 return
             
         except Exception as e:
@@ -311,7 +311,7 @@ def main():
         st.header(" Análise Visual Principal")
         try:
             fig_principal = gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas)
-            st.plotly_chart(fig_principal, width='stretch')
+            st.plotly_chart(fig_principal, use_container_width=True)
         except Exception as e:
             st.error(f"Erro ao gerar gráfico: {e}")
         
@@ -340,7 +340,7 @@ def main():
         if filtro_placa or filtro_desc:
             st.info(f" {len(df_filtrado)} registros encontrados")
 
-        st.dataframe(df_filtrado.head(100), width='stretch')
+        st.dataframe(df_filtrado.head(100), use_container_width=True)
         
         # Resumos
         st.header(" Resumos Detalhados")
@@ -349,13 +349,13 @@ def main():
         with tab1:
             if lojas_selecionadas:
                 st.caption(" Mostrando dados das lojas filtradas")
-            st.dataframe(dados['por_loja'], width='stretch')
+            st.dataframe(dados['por_loja'], use_container_width=True)
         with tab2:
-            st.dataframe(dados['por_desc'], width='stretch')
+            st.dataframe(dados['por_desc'], use_container_width=True)
         with tab3:
-            st.dataframe(dados['por_ativ'].head(20), width='stretch')
+            st.dataframe(dados['por_ativ'].head(20), use_container_width=True)
         with tab4:
-            st.dataframe(dados['por_dia'], width='stretch')
+            st.dataframe(dados['por_dia'], use_container_width=True)
         
         # Download
         st.header("💾 Download")
