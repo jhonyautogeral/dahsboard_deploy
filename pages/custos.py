@@ -64,7 +64,7 @@ def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descr
     LEFT JOIN cadastros_veiculos cv ON ca.CADA_VEIC_ID = cv.CADA_VEIC_ID
     LEFT JOIN cadastros_veiculos_ultilizacao cvu ON ca.CADA_VEIC_ID = cvu.CADA_VEIC_ID
     WHERE {' AND '.join(where_conditions)}
-    ORDER BY a.CADASTRO, c.LOJA
+    ORDER BY a.CADASTRO, c.COMP_LOJA
     """
     
     engine = criar_conexao()
