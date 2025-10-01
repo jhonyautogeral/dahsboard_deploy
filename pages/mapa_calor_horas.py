@@ -1,5 +1,4 @@
 import streamlit as st
-# Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
@@ -68,12 +67,10 @@ def gerar_subtitulo(periodo, ano, mes, semana):
 def converter_minutos_para_tempo(minutos):
     if pd.isna(minutos) or minutos == 0:
         return "0m"
-    
     minutos = int(minutos)
     dias = minutos // 1440
     horas = (minutos % 1440) // 60
     mins = minutos % 60
-    
     partes = []
     if dias > 0:
         partes.append(f"{dias}d")
@@ -81,40 +78,39 @@ def converter_minutos_para_tempo(minutos):
         partes.append(f"{horas}h")
     if mins > 0 or len(partes) == 0:
         partes.append(f"{mins}m")
-    
     return " ".join(partes)
 
 def main():
-    st.sidebar.title("Filtros")
+    st.sidebar.title("Filtros - Por Horas")
     
     engine = get_engine()
     lojas = consultar_lojas(engine)
-    loja_selecionada = st.sidebar.selectbox("Loja", lojas['LOJA'])
+    loja_selecionada = st.sidebar.selectbox("Loja", lojas['LOJA'], key="loja_horas")
     
     tipo_metrica = st.sidebar.selectbox(
         "Métrica",
-        ["Quantidade de ROMANEIO", 
-         "Mediana MINUTOS_DE_SEPARACAO",
-         "Mediana MINUTOS_ENTREGA",
-         "Mediana MINUTOS_ENTREGA_REALIZADA"]
+        ["Quantidade de ROMANEIO", "Mediana MINUTOS_DE_SEPARACAO",
+         "Mediana MINUTOS_ENTREGA", "Mediana MINUTOS_ENTREGA_REALIZADA"],
+        key="metrica_horas"
     )
     
-    periodo = st.sidebar.selectbox("Período", ["ANO", "MÊS", "SEMANA"])
+    periodo = st.sidebar.selectbox("Período", ["ANO", "MÊS", "SEMANA"], key="periodo_horas")
     
     ano_atual = datetime.now().year
     anos = list(range(ano_atual, ano_atual-3, -1))
-    ano = st.sidebar.selectbox("Ano", anos)
+    ano = st.sidebar.selectbox("Ano", anos, key="ano_horas")
     
     mes = None
     semana = None
     
     if periodo in ["MÊS", "SEMANA"]:
         mes = st.sidebar.selectbox("Mês", range(1, 13), 
-                                   format_func=lambda x: datetime(2000, x, 1).strftime('%B'))
+                                   format_func=lambda x: datetime(2000, x, 1).strftime('%B'),
+                                   key="mes_horas")
     
     if periodo == "SEMANA":
         semanas_disponiveis = semanas_do_mes(ano, mes)
-        semana = st.sidebar.selectbox("Semana", semanas_disponiveis)
+        semana = st.sidebar.selectbox("Semana", semanas_disponiveis, key="semana_horas")
     
     queries = {
         "Quantidade de ROMANEIO": """
@@ -228,8 +224,7 @@ def main():
                 coluna_problema = "TERMINO_SEPARACAO"
         
         if coluna_vazia:
-            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida. "
-                       f"NÃO É POSSÍVEL calcular a mediana de minutos.")
+            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida.")
         
         if coluna_vazia:
             st.markdown("### Tabela de Dados")
