@@ -1,250 +1,298 @@
-
 import streamlit as st
 # Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
-    st.stop()  # Interrompe a execução para evitar continuar carregando esta página
+    st.stop()
 
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.pool import NullPool
+import plotly.graph_objects as go
 from datetime import datetime
-import calendar
 
+st.set_page_config(layout="wide")
 
-# st.set_page_config(page_title="Entrega e suas métricas", layout="wide", page_icon="📊")
+# Constantes
+DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+MESES_NOMES = {1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 
+               5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto', 
+               9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'}
 
-# Lista global de dias da semana
-dias_semana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-
-# Função para criar conexão com o banco de dados
-def criar_conexao():
+@st.cache_resource
+def get_engine():
     config = st.secrets["connections"]["mysql"]
     url = f"{config['dialect']}://{config['username']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
-    return create_engine(url)
+    return create_engine(url, poolclass=NullPool, connect_args={'connect_timeout': 60})
 
-# Função genérica para realizar consultas ao banco de dados
-def executar_query(engine, query):
-    try:
-        return pd.read_sql(query, engine)
-    except Exception as e:
-        st.error(f"Erro ao executar a query: {e}")
-        return pd.DataFrame()
+@st.cache_data(ttl=3600)
+def executar_query(_engine, query):
+    tentativas = 3
+    for i in range(tentativas):
+        try:
+            with _engine.connect() as conn:
+                return pd.read_sql(text(query), conn)
+        except Exception as e:
+            if i == tentativas - 1:
+                raise e
+            st.warning(f"Reconectando... tentativa {i+1}")
 
+@st.cache_data(ttl=3600)
+def consultar_lojas(_engine):
+    query = "SELECT DISTINCT LOJA FROM romaneios_dbf ORDER BY LOJA"
+    return executar_query(_engine, query)
 
-# Função para consultar dados de lojas no banco de dados
-def consultar_lojas(engine):
-    query = "SELECT codigo, nome FROM autogeral.lojas ORDER BY codigo"
-    return executar_query(engine, query)
+def preencher_meses_dias(pivot):
+    """Preenche todos os meses e dias da semana"""
+    meses = list(MESES_NOMES.values())
+    pivot = pivot.reindex(index=meses, columns=DIAS_SEMANA, fill_value=0)
+    return pivot.fillna(0)
 
-# Função para validar as datas
-def validar_datas(inicio, termino):
-    if inicio > termino:
-        st.error("A data de início deve ser anterior ou igual à data de término.")
-        return False
-    return True
+def converter_minutos_para_tempo(minutos):
+    """Converte minutos para formato: Xd Xh Xm"""
+    if pd.isna(minutos) or minutos == 0:
+        return "0m"
+    
+    minutos = int(minutos)
+    dias = minutos // 1440
+    horas = (minutos % 1440) // 60
+    mins = minutos % 60
+    
+    partes = []
+    if dias > 0:
+        partes.append(f"{dias}d")
+    if horas > 0:
+        partes.append(f"{horas}h")
+    if mins > 0 or len(partes) == 0:
+        partes.append(f"{mins}m")
+    
+    return " ".join(partes)
 
-# Função para obter os utimos três anos
-def obter_ultimos_anos():
-    ano_atual = datetime.now().year
-    return [ano_atual - i for i in range(3)]
+def remover_outliers(df, coluna):
+    Q1 = df[coluna].quantile(0.25)
+    Q3 = df[coluna].quantile(0.75)
+    IQR = Q3 - Q1
+    return df[(df[coluna] >= Q1 - 1.5*IQR) & (df[coluna] <= Q3 + 1.5*IQR)]
 
-# Função para obter os meses do ano
-def obter_meses():
-    return list(calendar.month_name)[1:]
-
-# Função para obter semanas de um mês de um ano
-def obter_semanas(ano, mes):
-    return len(calendar.monthcalendar(ano, mes))
-
-def categorias():
-    # Dicionário de opções com nomes legíveis e valores correspondentes às colunas
-    categorias_opcoes = {
-        'Tempo separação em minutos': 'MINUTOS_DE_SEPARACAO',
-        'Quantidade de romaneios gerado por hora': 'ROMANEIO',
-        'Entrega completa. Gerado romaneio até entrega': 'MINUTOS_ENTREGA',
-        'Saida da loja até entrega, tempo em minutos': 'MINUTOS_ENTREGA_REALIZADA'
+def get_queries():
+    """Retorna dicionário com as queries SQL"""
+    return {
+        "Quantidade de ROMANEIO": """
+            SELECT 
+                CASE DAYOFWEEK(r.CADASTRO)
+                    WHEN 2 THEN 'Segunda' WHEN 3 THEN 'Terça' WHEN 4 THEN 'Quarta'
+                    WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
+                END AS dia_semana,
+                MONTH(r.CADASTRO) AS mes_num,
+                DATE(r.CADASTRO) as data,
+                WEEK(r.CADASTRO, 1) as semana,
+                r.ROMANEIO
+            FROM romaneios_dbf r
+            WHERE r.LOJA = {loja}
+              AND YEAR(r.CADASTRO) = {ano}
+              AND DAYOFWEEK(r.CADASTRO) BETWEEN 2 AND 7
+        """,
+        "Mediana MINUTOS_DE_SEPARACAO": """
+            SELECT 
+                CASE DAYOFWEEK(r.CADASTRO)
+                    WHEN 2 THEN 'Segunda' WHEN 3 THEN 'Terça' WHEN 4 THEN 'Quarta'
+                    WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
+                END AS dia_semana,
+                MONTH(r.CADASTRO) AS mes_num,
+                DATE(r.CADASTRO) as data,
+                WEEK(r.CADASTRO, 1) as semana,
+                r.ROMANEIO,
+                TIMESTAMPDIFF(MINUTE, r.CADASTRO, r.TERMINO_SEPARACAO) as valor
+            FROM romaneios_dbf r
+            WHERE r.LOJA = {loja}
+              AND YEAR(r.CADASTRO) = {ano}
+              AND DAYOFWEEK(r.CADASTRO) BETWEEN 2 AND 7
+        """,
+        "Mediana MINUTOS_ENTREGA": """
+            SELECT 
+                CASE DAYOFWEEK(r.CADASTRO)
+                    WHEN 2 THEN 'Segunda' WHEN 3 THEN 'Terça' WHEN 4 THEN 'Quarta'
+                    WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
+                END AS dia_semana,
+                MONTH(r.CADASTRO) AS mes_num,
+                DATE(r.CADASTRO) as data,
+                WEEK(r.CADASTRO, 1) as semana,
+                r.ROMANEIO,
+                ei.ROTA_HORARIO_REALIZADO,
+                TIMESTAMPDIFF(MINUTE, r.CADASTRO, ei.ROTA_HORARIO_REALIZADO) as valor
+            FROM romaneios_dbf r
+            LEFT JOIN expedicao_itens ei ON ei.VENDA_TIPO = 'ROMANEIO' 
+                AND ei.CODIGO_VENDA = r.ROMANEIO AND ei.LOJA_VENDA = r.LOJA
+            WHERE r.LOJA = {loja}
+              AND YEAR(r.CADASTRO) = {ano}
+              AND DAYOFWEEK(r.CADASTRO) BETWEEN 2 AND 7
+        """,
+        "Mediana MINUTOS_ENTREGA_REALIZADA": """
+            SELECT 
+                CASE DAYOFWEEK(r.CADASTRO)
+                    WHEN 2 THEN 'Segunda' WHEN 3 THEN 'Terça' WHEN 4 THEN 'Quarta'
+                    WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
+                END AS dia_semana,
+                MONTH(r.CADASTRO) AS mes_num,
+                DATE(r.CADASTRO) as data,
+                WEEK(r.CADASTRO, 1) as semana,
+                r.ROMANEIO,
+                ei.ROTA_HORARIO_REALIZADO,
+                a.HORA_SAIDA,
+                TIMESTAMPDIFF(MINUTE, a.HORA_SAIDA, ei.ROTA_HORARIO_REALIZADO) as valor
+            FROM romaneios_dbf r
+            LEFT JOIN expedicao_itens ei ON ei.VENDA_TIPO = 'ROMANEIO' 
+                AND ei.CODIGO_VENDA = r.ROMANEIO AND ei.LOJA_VENDA = r.LOJA
+            LEFT JOIN expedicao a ON ei.EXPEDICAO_CODIGO = a.EXPEDICAO 
+                AND ei.EXPEDICAO_LOJA = a.LOJA
+            WHERE r.LOJA = {loja}
+              AND YEAR(r.CADASTRO) = {ano}
+              AND DAYOFWEEK(r.CADASTRO) BETWEEN 2 AND 7
+        """
     }
-    return categorias_opcoes
 
-# Função para gerar a query de dados
-def gerar_query_dados(inicio, fim, loja):
-    return f"""
-        SELECT a.expedicao, r.ROMANEIO, a.LOJA, a.CADASTRO,
-               d.DESCRICAO AS 'Entregador',
-               a.KM_RETORNO - a.KM_SAIDA AS KMS,
-               a.ROTA_METROS,
-               a.HORA_SAIDA, a.HORA_RETORNO,
-               r.TERMINO_SEPARACAO,
-               TIMESTAMPDIFF(MINUTE, r.CADASTRO, r.TERMINO_SEPARACAO) AS MINUTOS_DE_SEPARACAO,
-               IF(24*60*60 >= (IF(a.HORA_SAIDA < a.HORA_RETORNO,
-                                  TIMEDIFF(a.HORA_RETORNO, a.HORA_SAIDA),
-                                  TIMEDIFF(a.HORA_SAIDA, a.HORA_RETORNO))),
-                  IF(a.HORA_SAIDA < a.HORA_RETORNO,
-                     TIMEDIFF(a.HORA_RETORNO, a.HORA_SAIDA),
-                     TIMEDIFF(a.HORA_SAIDA, a.HORA_RETORNO)),
-                  '23:59:59') AS TEMPO_MARCACAO,
-               IF(a.ROTA_TEMPO > 24*60*60, '23:59:59', SEC_TO_TIME(a.ROTA_TEMPO)) AS TEMPO_ROTEAMENTO,
-               a.ROTA_TEMPO,
-               ((TIME_TO_SEC(a.HORA_RETORNO) - TIME_TO_SEC(a.HORA_SAIDA)) / a.ROTA_TEMPO) AS DIFERENCA_TEMPO,
-               r.CADASTRO AS HORA_ROMANEIO,
-               TIMEDIFF(e.ROTA_HORARIO_REALIZADO, r.CADASTRO) AS TEMPO_ENTREGA,
-               TIMESTAMPDIFF(MINUTE, r.CADASTRO, e.ROTA_HORARIO_REALIZADO) AS MINUTOS_ENTREGA,
-               e.ROTA_STATUS,
-               e.ROTA_HORARIO_PREVISTO,
-               e.ROTA_HORARIO_REALIZADO,
-               TIMESTAMPDIFF(MINUTE, a.HORA_SAIDA, e.ROTA_HORARIO_REALIZADO) MINUTOS_ENTREGA_REALIZADA
-        FROM expedicao_itens e
-        JOIN expedicao a ON e.EXPEDICAO_CODIGO = a.EXPEDICAO AND e.EXPEDICAO_LOJA = a.LOJA
-        JOIN cadastros_veiculos b ON a.cada_veic_id = b.cada_veic_id
-        JOIN produto_veiculo c ON b.veiculo_codigo = c.codigo
-        JOIN entregador d ON a.ENTREGADOR_CODIGO = d.CODIGO
-        LEFT JOIN romaneios_dbf r ON e.VENDA_TIPO = 'ROMANEIO' AND e.CODIGO_VENDA = r.ROMANEIO AND e.LOJA_VENDA = r.LOJA
-        WHERE a.ROTA_METROS IS NOT NULL
-          AND a.LOJA = {loja}
-          AND r.CADASTRO BETWEEN '{inicio}' AND '{fim}';
-    """
- # Função para gerar o mapa de calor e grafico de barras
-def gerar_mapa_calor(df, titulo, dias_validos, data_inicio, data_fim, categoria_selecionada):
-    """
-    Gera um mapa de calor para uma categoria selecionada.
+def verificar_coluna_vazia(df, tipo_metrica):
+    """Verifica se as colunas necessárias estão vazias"""
+    coluna_vazia = False
+    coluna_problema = None
     
-    Args:
-        df (DataFrame): Dados para análise.
-        titulo (str): Título do gráfico.
-        dias_validos (list): Dias da semana válidos.
-        data_inicio (datetime): Data inicial do intervalo.
-        data_fim (datetime): Data final do intervalo.
-        categoria_selecionada (str): Categoria selecionada.
+    if tipo_metrica in ["Mediana MINUTOS_ENTREGA", "Mediana MINUTOS_ENTREGA_REALIZADA"]:
+        if df['ROTA_HORARIO_REALIZADO'].isna().all():
+            coluna_vazia = True
+            coluna_problema = "ROTA_HORARIO_REALIZADO"
     
-    Returns:
-        None
-    """
-    # Validação da categoria selecionada
-    categorias_validas = ['ROMANEIO', 'MINUTOS_DE_SEPARACAO', 'MINUTOS_ENTREGA_REALIZADA', 'MINUTOS_ENTREGA']
-    if categoria_selecionada not in categorias_validas:
-        st.error(f"Categoria inválida: {categoria_selecionada}")
-        return
+    if tipo_metrica == "Mediana MINUTOS_DE_SEPARACAO":
+        if df['valor'].isna().all():
+            coluna_vazia = True
+            coluna_problema = "TERMINO_SEPARACAO"
     
-    try:
-        # Preprocessamento comum
-        
-        # Convertendo a coluna 'CADASTRO' para datetime
-        df['CADASTRO'] = pd.to_datetime(df['CADASTRO'])
-        df['DIA_DA_SEMANA'] = df['CADASTRO'].dt.dayofweek.map(lambda x: dias_semana[x])
-        df['MES'] = df['CADASTRO'].dt.month
-        df['MES'] = df['MES'].map({1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4:'Abril', 5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto', 9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'})
-        df['MES'] = pd.Categorical(df['MES'], categories=['Janeiro','Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho','Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'], ordered=True)
-        df = df.sort_values('MES')
-        df['DIA'] = df['CADASTRO'].dt.date
+    return coluna_vazia, coluna_problema
 
-        # Filtrar apenas entregas realizadas e intervalo de data
-        df = df[(df['ROTA_STATUS'] == 'ENTREGUE') & 
-                (df['DIA'] >= data_inicio.date()) & 
-                (df['DIA'] <= data_fim.date())]
-
-        # Filtrar dados para a categoria
-        if categoria_selecionada in ['ROMANEIO', 'MINUTOS_DE_SEPARACAO', 'MINUTOS_ENTREGA_REALIZADA']:
-            df['CATEGORIA'] = df[categoria_selecionada]
-            df_filtrado = df[df['CATEGORIA'].notnull()]
-
-            # Agrupar e calcular medianas
-            df_agrupado = (
-                df_filtrado.groupby(['MES', 'DIA_DA_SEMANA'], observed=False)[categoria_selecionada]
-                .median()
-                .reset_index(name='MEDIANA')
-            )
-
-        elif categoria_selecionada == 'MINUTOS_ENTREGA':
-            # df = df[(df['MES'] >= 8) & (df['HORA'] <= 18)]
-            df['ENTREGAS_40'] = df[categoria_selecionada] <= 40
-
-            df_agrupado = (
-                df[df['ENTREGAS_40']]
-                .groupby(['MES', 'DIA_DA_SEMANA'], observed=False)
-                .size()
-                .reset_index(name='QUANTIDADE_ENTREGAS')
-            )
-
-        # Criar tabela para o mapa de calor
-        tabela = df_agrupado.pivot(index='MES', columns='DIA_DA_SEMANA', values=df_agrupado.columns[-1])
-        tabela = tabela.fillna(0)
-
-        # Garantir dias válidos
-        for dia in dias_semana:
-            if dia not in tabela.columns:
-                tabela[dia] = 0
-
-        tabela = tabela[dias_validos]
-
-        # Gerar o mapa de calor
-        plt.figure(figsize=(10, 6))
-        x = sns.heatmap(tabela, annot=True, fmt='.0f', cmap='Blues', cbar=True)
-        plt.title(titulo)
-
-        x.xaxis.set_label_position('top')  # define a posição do rótulo para o topo
-        x.xaxis.tick_top()                  # move as marcações do eixo X para o topo
-        x.set_xlabel("Dia da Semana", labelpad=10)
-        # plt.xlabel("Dia da Semana")
-        plt.ylabel("Mês")
-        plt.xticks(rotation=0)
-        plt.yticks(rotation=0)
-        st.pyplot(plt)
+def criar_pivot(df, tipo_metrica, coluna_vazia):
+    """Cria a tabela pivot para o mapa de calor"""
+    if tipo_metrica == "Quantidade de ROMANEIO":
+        pivot = df.groupby(['mes', 'dia_semana'])['ROMANEIO'].nunique().reset_index()
+        pivot = pivot.pivot(index='mes', columns='dia_semana', values='ROMANEIO')
+    else:
+        if not coluna_vazia:
+            df_limpo = remover_outliers(df[df['valor'] > 0], 'valor')
+            pivot = df_limpo.pivot_table(values='valor', index='mes', columns='dia_semana', aggfunc='median')
+        else:
+            meses = list(MESES_NOMES.values())
+            pivot = pd.DataFrame(0, index=meses, columns=DIAS_SEMANA)
     
-    except KeyError as e:
-        st.error(f"Erro ao processar os dados: Coluna ausente {e}")
-    except Exception as e:
-        st.error(f"Ocorreu um erro: {e}")
+    return preencher_meses_dias(pivot)
 
+def criar_mapa_calor(pivot, tipo_metrica):
+    """Cria o gráfico de mapa de calor"""
+    valores_texto = pivot.values.astype(int) if tipo_metrica == "Quantidade de ROMANEIO" else pivot.values.round(1)
+    formato_hover = '%{x} - %{y}<br>Quantidade: %{z}<extra></extra>' if tipo_metrica == "Quantidade de ROMANEIO" else '%{x} - %{y}<br>Minutos: %{z:.1f}<extra></extra>'
+    
+    fig = go.Figure(data=go.Heatmap(
+        z=pivot.values, x=pivot.columns, y=pivot.index,
+        colorscale='Blues', text=valores_texto, texttemplate='%{text}',
+        textfont={"size": 11, "color": "black"},
+        colorbar=dict(title="", thickness=15, len=0.7, x=1.02),
+        xgap=1, ygap=1, hovertemplate=formato_hover
+    ))
+    
+    fig.update_layout(
+        xaxis=dict(title="Dia da Semana", side="top", tickfont=dict(size=11, color='black'), showgrid=False),
+        yaxis=dict(title="Mês", tickfont=dict(size=11, color='black'), showgrid=False),
+        height=600, plot_bgcolor='white', paper_bgcolor='white',
+        margin=dict(l=100, r=80, t=80, b=50)
+    )
+    
+    return fig
+
+def criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia):
+    """Cria a tabela de dados detalhada"""
+    if tipo_metrica == "Quantidade de ROMANEIO":
+        tabela = df.groupby(['mes', 'data', 'semana', 'dia_semana']).agg(
+            quantidade_romaneio=('ROMANEIO', 'nunique')
+        ).reset_index()
+    else:
+        if not coluna_vazia:
+            df_validos = df[df['valor'].notna()]
+            tabela = df_validos.groupby(['mes', 'data', 'semana', 'dia_semana']).agg(
+                quantidade_romaneio=('ROMANEIO', 'nunique'),
+                mediana_minutos=('valor', 'median')
+            ).reset_index()
+            tabela['mediana_minutos'] = tabela['mediana_minutos'].apply(converter_minutos_para_tempo)
+        else:
+            tabela = df.groupby(['mes', 'data', 'semana', 'dia_semana']).agg(
+                quantidade_romaneio=('ROMANEIO', 'nunique')
+            ).reset_index()
+    
+    tabela['ano'] = ano
+    tabela['mes_num'] = tabela['mes'].map({v: k for k, v in MESES_NOMES.items()})
+    
+    colunas = ['ano', 'mes_num', 'mes', 'semana', 'dia_semana', 'data', 'quantidade_romaneio']
+    if 'mediana_minutos' in tabela.columns:
+        colunas.append('mediana_minutos')
+    
+    return tabela[colunas]
 
 def main():
-    # Criar conexão com o banco de dados
-    engine = criar_conexao()
-
-    # Consultar dados das lojas
-    df_lojas = consultar_lojas(engine)
-    loja_dict = dict(zip(df_lojas['codigo'], df_lojas['nome']))
+    # Sidebar
+    st.sidebar.title("Filtros")
     
-    st.sidebar.write("## Mapa de calor por meses")
-    # Seleção de loja
-    loja_selecionada = st.sidebar.selectbox("Selecione a loja", options=loja_dict.keys(), format_func=lambda x: loja_dict[x], key="mnavm_loja")
-
-    # Navegação por barra
-    navegacao = st.sidebar.radio("Navegação", options=["Ano"], key="mnavm_navegacao")
-
-    if navegacao == "Ano":
-        # Apenas exibe os widgets para "Ano"
-        categorias_opcoes = categorias()
-        # Seleção da categoria
-        categoria_legivel = st.sidebar.selectbox(
-            "Selecione a categoria",
-            options=list(categorias_opcoes.keys()),  # Exibe os nomes legíveis no selectbox
-            key="mnavm1_categoria"
-        )
-        # Recupera o valor correspondente à coluna no DataFrame
-        categoria_selecionada = categorias_opcoes[categoria_legivel]
-
-        # selecionar o ano
-        anos = obter_ultimos_anos()
-        ano_selecionado = st.sidebar.selectbox("Selecione o ano", options=anos, key="mnavm_ano")
-
-        data_inicio_ano = datetime(ano_selecionado, 1, 1)
-        data_fim_ano = datetime(ano_selecionado, 12, 31)
-
-        # Mostrar o nome da categoria selecionada
-        categoria_legivel = [k for k, v in categorias().items() if v == categoria_selecionada][0]
-        st.write(f"### Mapa de calor para Categoria: {categoria_legivel}")
-
-        # st.write("### Mediana Tempo em minutos Geração do romaneio até entrega")
-        query = gerar_query_dados(data_inicio_ano, data_fim_ano, loja_selecionada)
+    engine = get_engine()
+    lojas = consultar_lojas(engine)
+    loja_selecionada = st.sidebar.selectbox("Loja", lojas['LOJA'])
+    
+    tipo_metrica = st.sidebar.selectbox(
+        "Métrica",
+        ["Quantidade de ROMANEIO", 
+         "Mediana MINUTOS_DE_SEPARACAO",
+         "Mediana MINUTOS_ENTREGA",
+         "Mediana MINUTOS_ENTREGA_REALIZADA"]
+    )
+    
+    ano_atual = datetime.now().year
+    anos = list(range(ano_atual, ano_atual-3, -1))
+    ano = st.sidebar.selectbox("Ano", anos)
+    
+    # Executar query
+    queries = get_queries()
+    query = queries[tipo_metrica].format(loja=loja_selecionada, ano=ano)
+    
+    with st.spinner('Carregando dados...'):
         df = executar_query(engine, query)
-        if not df.empty:
-            gerar_mapa_calor(df, f"Mapa de calor - Ano {ano_selecionado}", dias_semana, data_inicio_ano, data_fim_ano, categoria_selecionada)
-        else:
-            st.warning("Nenhum dado encontrado para o ano selecionado.")
+    
+    if not df.empty:
+        # Mapear mês
+        df['mes'] = df['mes_num'].map(MESES_NOMES)
+        
+        # Título
+        st.title(f"Mapa de calor - Ano {ano}")
+        
+        # Verificar colunas vazias
+        coluna_vazia, coluna_problema = verificar_coluna_vazia(df, tipo_metrica)
+        
+        if coluna_vazia:
+            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida. "
+                       f"NÃO É POSSÍVEL calcular a mediana de minutos.")
+            
+            # Tabela primeiro
+            st.markdown("### Tabela de Dados")
+            tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
+            st.dataframe(tabela, use_container_width=True)
+        
+        # Criar pivot e mapa
+        pivot = criar_pivot(df, tipo_metrica, coluna_vazia)
+        st.markdown(f"### {tipo_metrica}")
+        fig = criar_mapa_calor(pivot, tipo_metrica)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Tabela depois (se não houver problema)
+        if not coluna_vazia:
+            st.markdown("---")
+            st.subheader("Tabela de Dados")
+            tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
+            st.dataframe(tabela, use_container_width=True)
+    else:
+        st.warning("Sem dados para o período selecionado")
 
 if __name__ == "__main__":
     main()
