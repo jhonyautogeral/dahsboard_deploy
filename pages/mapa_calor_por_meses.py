@@ -11,8 +11,6 @@ from sqlalchemy.pool import NullPool
 import plotly.graph_objects as go
 from datetime import datetime
 
-st.set_page_config(layout="wide")
-
 # Constantes
 DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 MESES_NOMES = {1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 
