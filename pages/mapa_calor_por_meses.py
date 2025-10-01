@@ -11,7 +11,7 @@ from sqlalchemy.pool import NullPool
 import plotly.graph_objects as go
 from datetime import datetime
 
-# st.set_page_config(layout="wide")
+st.set_page_config(layout="wide")
 
 # Constantes
 DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
@@ -277,7 +277,7 @@ def main():
             # Tabela primeiro
             st.markdown("### Tabela de Dados")
             tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
-            st.dataframe(tabela, use_container_width=True)
+            st.dataframe(tabela, width='stretch')
         
         # Criar pivot e mapa
         pivot = criar_pivot(df, tipo_metrica, coluna_vazia)
@@ -290,7 +290,7 @@ def main():
             st.markdown("---")
             st.subheader("Tabela de Dados")
             tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
-            st.dataframe(tabela, use_container_width=True)
+            st.dataframe(tabela, width='stretch')
     else:
         st.warning("Sem dados para o período selecionado")
 

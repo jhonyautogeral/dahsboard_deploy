@@ -3,24 +3,19 @@ import streamlit as st
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
-    st.stop()  # Interrompe a execução para evitar continuar carregando esta página
+    st.stop()
+
 import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import NullPool
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
-
-# st.set_page_config(layout="wide")
+from datetime import datetime
 
 @st.cache_resource
 def get_engine():
     config = st.secrets["connections"]["mysql"]
     url = f"{config['dialect']}://{config['username']}:{config['password']}@{config['host']}:{config['port']}/{config['database']}"
-    return create_engine(
-        url,
-        poolclass=NullPool,
-        connect_args={'connect_timeout': 60}
-    )
+    return create_engine(url, poolclass=NullPool, connect_args={'connect_timeout': 60})
 
 @st.cache_data(ttl=3600)
 def executar_query(_engine, query):
@@ -71,7 +66,6 @@ def gerar_subtitulo(periodo, ano, mes, semana):
     return ""
 
 def converter_minutos_para_tempo(minutos):
-    """Converte minutos para formato: Xd Xh Xm Xs"""
     if pd.isna(minutos) or minutos == 0:
         return "0m"
     
@@ -91,7 +85,6 @@ def converter_minutos_para_tempo(minutos):
     return " ".join(partes)
 
 def main():
-    # Sidebar
     st.sidebar.title("Filtros")
     
     engine = get_engine()
@@ -123,7 +116,6 @@ def main():
         semanas_disponiveis = semanas_do_mes(ano, mes)
         semana = st.sidebar.selectbox("Semana", semanas_disponiveis)
     
-    # Queries
     queries = {
         "Quantidade de ROMANEIO": """
             SELECT 
@@ -215,7 +207,6 @@ def main():
         filtro_semana=filtro_semana
     )
     
-    # Executar
     with st.spinner('Carregando dados...'):
         df = executar_query(engine, query)
     
@@ -223,7 +214,6 @@ def main():
         subtitulo = gerar_subtitulo(periodo, ano, mes, semana)
         st.title(f"Mapa de calor - {subtitulo}")
         
-        # Verificar colunas vazias
         coluna_vazia = False
         coluna_problema = None
         
@@ -237,12 +227,10 @@ def main():
                 coluna_vazia = True
                 coluna_problema = "TERMINO_SEPARACAO"
         
-        # Aviso
         if coluna_vazia:
             st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida. "
                        f"NÃO É POSSÍVEL calcular a mediana de minutos.")
         
-        # TABELA PRIMEIRO (se houver problema)
         if coluna_vazia:
             st.markdown("### Tabela de Dados")
             tabela = df.groupby(['data', 'semana', 'dia_semana', 'hora']).agg(
@@ -251,9 +239,8 @@ def main():
             tabela['ano'] = ano
             tabela['mes'] = tabela['data'].apply(lambda x: x.month if hasattr(x, 'month') else mes)
             tabela = tabela[['ano', 'mes', 'semana', 'dia_semana', 'data', 'hora', 'quantidade_romaneio']]
-            st.dataframe(tabela, width='stretch')
+            st.dataframe(tabela)
         
-        # Processar pivot
         if tipo_metrica == "Quantidade de ROMANEIO":
             pivot = df.pivot_table(values='quantidade', index='hora', columns='dia_semana', aggfunc='sum', fill_value=0)
         else:
@@ -265,11 +252,8 @@ def main():
                 pivot = pd.DataFrame(0, index=range(7, 20), columns=dias)
         
         pivot = preencher_horas_dias(pivot)
-        
-        # LEGENDA COM MÉTRICA
         st.markdown(f"### {tipo_metrica}")
         
-        # Mapa de calor
         valores_texto = pivot.values.astype(int) if tipo_metrica == "Quantidade de ROMANEIO" else pivot.values.round(1)
         formato_hover = '%{y}h - %{x}<br>Quantidade: %{z}<extra></extra>' if tipo_metrica == "Quantidade de ROMANEIO" else '%{y}h - %{x}<br>Minutos: %{z:.1f}<extra></extra>'
         
@@ -290,7 +274,6 @@ def main():
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # TABELA SEMPRE EXIBIDA COM ESTRUTURA PADRÃO
         st.markdown("---")
         st.subheader("Tabela de Dados")
         
@@ -310,21 +293,18 @@ def main():
                     quantidade_romaneio=('ROMANEIO', 'nunique')
                 ).reset_index()
         
-        # Adicionar ano e mês
         tabela['ano'] = ano
         tabela['mes'] = tabela['data'].apply(lambda x: x.month if hasattr(x, 'month') else mes)
         
-        # Converter mediana_minutos para formato legível
         if 'mediana_minutos' in tabela.columns:
             tabela['mediana_minutos'] = tabela['mediana_minutos'].apply(converter_minutos_para_tempo)
         
-        # Reorganizar colunas
         colunas_base = ['ano', 'mes', 'semana', 'dia_semana', 'data', 'hora', 'quantidade_romaneio']
         if 'mediana_minutos' in tabela.columns:
             colunas_base.append('mediana_minutos')
         
         tabela = tabela[colunas_base]
-        st.dataframe(tabela, width='stretch')
+        st.dataframe(tabela)
         
     else:
         st.warning("Sem dados para o período selecionado")
