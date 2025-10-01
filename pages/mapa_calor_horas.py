@@ -80,6 +80,26 @@ def converter_minutos_para_tempo(minutos):
         partes.append(f"{mins}m")
     return " ".join(partes)
 
+def verificar_qualidade_dados(df, tipo_metrica):
+    """Verifica se há dados suficientes e de qualidade"""
+    if tipo_metrica in ["Mediana MINUTOS_ENTREGA", "Mediana MINUTOS_ENTREGA_REALIZADA"]:
+        dados_validos = df[df['ROTA_HORARIO_REALIZADO'].notna()]
+        if dados_validos.empty:
+            return False, "ROTA_HORARIO_REALIZADO"
+        horas_unicas = dados_validos['hora'].nunique()
+        if horas_unicas < 5:
+            return False, "ROTA_HORARIO_REALIZADO"
+    
+    elif tipo_metrica == "Mediana MINUTOS_DE_SEPARACAO":
+        dados_validos = df[df['valor'].notna() & (df['valor'] > 0)]
+        if dados_validos.empty:
+            return False, "TERMINO_SEPARACAO"
+        horas_unicas = dados_validos['hora'].nunique()
+        if horas_unicas < 5:
+            return False, "TERMINO_SEPARACAO"
+    
+    return True, None
+
 def main():
     st.sidebar.title("Filtros - Por Horas")
     
@@ -210,74 +230,39 @@ def main():
         subtitulo = gerar_subtitulo(periodo, ano, mes, semana)
         st.title(f"Mapa de calor - {subtitulo}")
         
-        coluna_vazia = False
-        coluna_problema = None
+        # Verificação de qualidade dos dados
+        dados_ok, coluna_problema = verificar_qualidade_dados(df, tipo_metrica)
         
-        if tipo_metrica in ["Mediana MINUTOS_ENTREGA", "Mediana MINUTOS_ENTREGA_REALIZADA"]:
-            if df['ROTA_HORARIO_REALIZADO'].isna().all():
-                coluna_vazia = True
-                coluna_problema = "ROTA_HORARIO_REALIZADO"
+        # Mostra aviso apenas uma vez no início se houver problema
+        if not dados_ok:
+            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida corretamente no banco de dados.")
         
-        if tipo_metrica == "Mediana MINUTOS_DE_SEPARACAO":
-            if df['valor'].isna().all():
-                coluna_vazia = True
-                coluna_problema = "TERMINO_SEPARACAO"
-        
-        if coluna_vazia:
-            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida.")
-        
-        if coluna_vazia:
-            st.markdown("### Tabela de Dados")
-            tabela = df.groupby(['data', 'semana', 'dia_semana', 'hora']).agg(
-                quantidade_romaneio=('ROMANEIO', 'nunique')
-            ).reset_index()
-            tabela['ano'] = ano
-            tabela['mes'] = tabela['data'].apply(lambda x: x.month if hasattr(x, 'month') else mes)
-            tabela = tabela[['ano', 'mes', 'semana', 'dia_semana', 'data', 'hora', 'quantidade_romaneio']]
-            st.dataframe(tabela)
-        
+        # Preparar pivot para o mapa de calor
         if tipo_metrica == "Quantidade de ROMANEIO":
             pivot = df.pivot_table(values='quantidade', index='hora', columns='dia_semana', aggfunc='sum', fill_value=0)
         else:
-            if not coluna_vazia:
+            if dados_ok:
                 df_limpo = remover_outliers(df[df['valor'] > 0], 'valor')
                 pivot = df_limpo.pivot_table(values='valor', index='hora', columns='dia_semana', aggfunc='median', fill_value=0)
             else:
-                dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
-                pivot = pd.DataFrame(0, index=range(7, 20), columns=dias)
+                # Se houver algum valor, mostra apenas as horas com dados
+                df_validos = df[df['valor'].notna() & (df['valor'] > 0)]
+                if not df_validos.empty:
+                    pivot = df_validos.pivot_table(values='valor', index='hora', columns='dia_semana', aggfunc='median', fill_value=0)
+                else:
+                    # Se totalmente vazio, cria pivot zerado
+                    dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+                    pivot = pd.DataFrame(0, index=range(7, 20), columns=dias)
         
         pivot = preencher_horas_dias(pivot)
-        st.markdown(f"### {tipo_metrica}")
         
-        valores_texto = pivot.values.astype(int) if tipo_metrica == "Quantidade de ROMANEIO" else pivot.values.round(1)
-        formato_hover = '%{y}h - %{x}<br>Quantidade: %{z}<extra></extra>' if tipo_metrica == "Quantidade de ROMANEIO" else '%{y}h - %{x}<br>Minutos: %{z:.1f}<extra></extra>'
-        
-        fig = go.Figure(data=go.Heatmap(
-            z=pivot.values, x=pivot.columns, y=pivot.index,
-            colorscale='Blues', text=valores_texto, texttemplate='%{text}',
-            textfont={"size": 11, "color": "black"},
-            colorbar=dict(title="", thickness=15, len=0.7, x=1.02),
-            xgap=1, ygap=1, hovertemplate=formato_hover
-        ))
-        
-        fig.update_layout(
-            xaxis=dict(title="", side="top", tickfont=dict(size=11, color='black'), showgrid=False),
-            yaxis=dict(title="Hora", tickfont=dict(size=11, color='black'), showgrid=False, autorange="reversed"),
-            height=600, plot_bgcolor='white', paper_bgcolor='white',
-            margin=dict(l=50, r=80, t=80, b=50)
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        st.markdown("---")
-        st.subheader("Tabela de Dados")
-        
+        # Preparar tabela
         if tipo_metrica == "Quantidade de ROMANEIO":
             tabela = df.groupby(['data', 'semana', 'dia_semana', 'hora']).agg(
                 quantidade_romaneio=('ROMANEIO', 'nunique')
             ).reset_index()
         else:
-            if not coluna_vazia:
+            if dados_ok:
                 df_validos = df[df['valor'].notna()]
                 tabela = df_validos.groupby(['data', 'semana', 'dia_semana', 'hora']).agg(
                     quantidade_romaneio=('ROMANEIO', 'nunique'),
@@ -299,7 +284,47 @@ def main():
             colunas_base.append('mediana_minutos')
         
         tabela = tabela[colunas_base]
-        st.dataframe(tabela)
+        
+        # ORDEM DE EXIBIÇÃO: Se houver problema, tabela primeiro, senão mapa primeiro
+        if not dados_ok:
+            # Exibe tabela primeiro
+            st.subheader("Tabela de Dados")
+            st.dataframe(tabela)
+            
+            st.markdown("---")
+            
+            # Depois exibe o mapa
+            st.markdown(f"### {tipo_metrica}")
+        else:
+            # Exibe mapa primeiro
+            st.markdown(f"### {tipo_metrica}")
+        
+        # Gráfico do mapa de calor (sempre exibido)
+        valores_texto = pivot.values.astype(int) if tipo_metrica == "Quantidade de ROMANEIO" else pivot.values.round(1)
+        formato_hover = '%{y}h - %{x}<br>Quantidade: %{z}<extra></extra>' if tipo_metrica == "Quantidade de ROMANEIO" else '%{y}h - %{x}<br>Minutos: %{z:.1f}<extra></extra>'
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=pivot.values, x=pivot.columns, y=pivot.index,
+            colorscale='Blues', text=valores_texto, texttemplate='%{text}',
+            textfont={"size": 11, "color": "black"},
+            colorbar=dict(title="", thickness=15, len=0.7, x=1.02),
+            xgap=1, ygap=1, hovertemplate=formato_hover
+        ))
+        
+        fig.update_layout(
+            xaxis=dict(title="", side="top", tickfont=dict(size=11, color='black'), showgrid=False),
+            yaxis=dict(title="Hora", tickfont=dict(size=11, color='black'), showgrid=False, autorange="reversed"),
+            height=600, plot_bgcolor='white', paper_bgcolor='white',
+            margin=dict(l=50, r=80, t=80, b=50)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Se dados OK, exibe tabela depois do mapa
+        if dados_ok:
+            st.markdown("---")
+            st.subheader("Tabela de Dados")
+            st.dataframe(tabela)
         
     else:
         st.warning("Sem dados para o período selecionado")
