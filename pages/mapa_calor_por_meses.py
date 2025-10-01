@@ -74,8 +74,6 @@ def get_queries():
                     WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
                 END AS dia_semana,
                 MONTH(r.CADASTRO) AS mes_num,
-                DATE(r.CADASTRO) as data,
-                WEEK(r.CADASTRO, 1) as semana,
                 r.ROMANEIO
             FROM romaneios_dbf r
             WHERE r.LOJA = {loja}
@@ -89,8 +87,6 @@ def get_queries():
                     WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
                 END AS dia_semana,
                 MONTH(r.CADASTRO) AS mes_num,
-                DATE(r.CADASTRO) as data,
-                WEEK(r.CADASTRO, 1) as semana,
                 r.ROMANEIO,
                 TIMESTAMPDIFF(MINUTE, r.CADASTRO, r.TERMINO_SEPARACAO) as valor
             FROM romaneios_dbf r
@@ -105,10 +101,7 @@ def get_queries():
                     WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
                 END AS dia_semana,
                 MONTH(r.CADASTRO) AS mes_num,
-                DATE(r.CADASTRO) as data,
-                WEEK(r.CADASTRO, 1) as semana,
                 r.ROMANEIO,
-                ei.ROTA_HORARIO_REALIZADO,
                 TIMESTAMPDIFF(MINUTE, r.CADASTRO, ei.ROTA_HORARIO_REALIZADO) as valor
             FROM romaneios_dbf r
             LEFT JOIN expedicao_itens ei ON ei.VENDA_TIPO = 'ROMANEIO' 
@@ -124,11 +117,7 @@ def get_queries():
                     WHEN 5 THEN 'Quinta' WHEN 6 THEN 'Sexta' WHEN 7 THEN 'Sábado'
                 END AS dia_semana,
                 MONTH(r.CADASTRO) AS mes_num,
-                DATE(r.CADASTRO) as data,
-                WEEK(r.CADASTRO, 1) as semana,
                 r.ROMANEIO,
-                ei.ROTA_HORARIO_REALIZADO,
-                a.HORA_SAIDA,
                 TIMESTAMPDIFF(MINUTE, a.HORA_SAIDA, ei.ROTA_HORARIO_REALIZADO) as valor
             FROM romaneios_dbf r
             LEFT JOIN expedicao_itens ei ON ei.VENDA_TIPO = 'ROMANEIO' 
@@ -142,20 +131,10 @@ def get_queries():
     }
 
 def verificar_coluna_vazia(df, tipo_metrica):
-    coluna_vazia = False
-    coluna_problema = None
-    
-    if tipo_metrica in ["Mediana MINUTOS_ENTREGA", "Mediana MINUTOS_ENTREGA_REALIZADA"]:
-        if df['ROTA_HORARIO_REALIZADO'].isna().all():
-            coluna_vazia = True
-            coluna_problema = "ROTA_HORARIO_REALIZADO"
-    
-    if tipo_metrica == "Mediana MINUTOS_DE_SEPARACAO":
+    if tipo_metrica != "Quantidade de ROMANEIO":
         if df['valor'].isna().all():
-            coluna_vazia = True
-            coluna_problema = "TERMINO_SEPARACAO"
-    
-    return coluna_vazia, coluna_problema
+            return True
+    return False
 
 def criar_pivot(df, tipo_metrica, coluna_vazia):
     if tipo_metrica == "Quantidade de ROMANEIO":
@@ -194,30 +173,27 @@ def criar_mapa_calor(pivot, tipo_metrica):
 
 def criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia):
     if tipo_metrica == "Quantidade de ROMANEIO":
-        tabela = df.groupby(['mes', 'data', 'semana', 'dia_semana']).agg(
+        tabela = df.groupby(['mes', 'dia_semana']).agg(
             quantidade_romaneio=('ROMANEIO', 'nunique')
         ).reset_index()
+        tabela['ano'] = ano
+        return tabela[['ano', 'mes', 'dia_semana', 'quantidade_romaneio']]
     else:
         if not coluna_vazia:
-            df_validos = df[df['valor'].notna()]
-            tabela = df_validos.groupby(['mes', 'data', 'semana', 'dia_semana']).agg(
+            df_validos = df[df['valor'].notna() & (df['valor'] > 0)]
+            tabela = df_validos.groupby(['mes', 'dia_semana']).agg(
                 quantidade_romaneio=('ROMANEIO', 'nunique'),
                 mediana_minutos=('valor', 'median')
             ).reset_index()
             tabela['mediana_minutos'] = tabela['mediana_minutos'].apply(converter_minutos_para_tempo)
         else:
-            tabela = df.groupby(['mes', 'data', 'semana', 'dia_semana']).agg(
+            tabela = df.groupby(['mes', 'dia_semana']).agg(
                 quantidade_romaneio=('ROMANEIO', 'nunique')
             ).reset_index()
-    
-    tabela['ano'] = ano
-    tabela['mes_num'] = tabela['mes'].map({v: k for k, v in MESES_NOMES.items()})
-    
-    colunas = ['ano', 'mes_num', 'mes', 'semana', 'dia_semana', 'data', 'quantidade_romaneio']
-    if 'mediana_minutos' in tabela.columns:
-        colunas.append('mediana_minutos')
-    
-    return tabela[colunas]
+            tabela['mediana_minutos'] = "0m"
+        
+        tabela['ano'] = ano
+        return tabela[['ano', 'mes', 'dia_semana', 'quantidade_romaneio', 'mediana_minutos']]
 
 def main():
     st.sidebar.title("Filtros - Por Meses")
@@ -248,24 +224,20 @@ def main():
         
         st.title(f"Mapa de calor - Ano {ano}")
         
-        coluna_vazia, coluna_problema = verificar_coluna_vazia(df, tipo_metrica)
+        coluna_vazia = verificar_coluna_vazia(df, tipo_metrica)
         
         if coluna_vazia:
-            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida.")
-            st.markdown("### Tabela de Dados")
-            tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
-            st.dataframe(tabela, use_container_width=True)
+            st.warning(f"⚠️ Dados de minutos não disponíveis para LOJA {loja_selecionada}.")
         
         pivot = criar_pivot(df, tipo_metrica, coluna_vazia)
         st.markdown(f"### {tipo_metrica}")
         fig = criar_mapa_calor(pivot, tipo_metrica)
         st.plotly_chart(fig, use_container_width=True)
         
-        if not coluna_vazia:
-            st.markdown("---")
-            st.subheader("Tabela de Dados")
-            tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
-            st.dataframe(tabela, use_container_width=True)
+        st.markdown("---")
+        st.subheader("Tabela de Dados")
+        tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
+        st.dataframe(tabela, use_container_width=True)
     else:
         st.warning("Sem dados para o período selecionado")
 
