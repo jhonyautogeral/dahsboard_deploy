@@ -1,5 +1,4 @@
 import streamlit as st
-# Proteção de acesso
 if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.warning("Você não está logado. Redirecionando para a página de login...")
     st.switch_page("app.py")
@@ -11,7 +10,6 @@ from sqlalchemy.pool import NullPool
 import plotly.graph_objects as go
 from datetime import datetime
 
-# Constantes
 DIAS_SEMANA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 MESES_NOMES = {1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril', 
                5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto', 
@@ -41,21 +39,17 @@ def consultar_lojas(_engine):
     return executar_query(_engine, query)
 
 def preencher_meses_dias(pivot):
-    """Preenche todos os meses e dias da semana"""
     meses = list(MESES_NOMES.values())
     pivot = pivot.reindex(index=meses, columns=DIAS_SEMANA, fill_value=0)
     return pivot.fillna(0)
 
 def converter_minutos_para_tempo(minutos):
-    """Converte minutos para formato: Xd Xh Xm"""
     if pd.isna(minutos) or minutos == 0:
         return "0m"
-    
     minutos = int(minutos)
     dias = minutos // 1440
     horas = (minutos % 1440) // 60
     mins = minutos % 60
-    
     partes = []
     if dias > 0:
         partes.append(f"{dias}d")
@@ -63,7 +57,6 @@ def converter_minutos_para_tempo(minutos):
         partes.append(f"{horas}h")
     if mins > 0 or len(partes) == 0:
         partes.append(f"{mins}m")
-    
     return " ".join(partes)
 
 def remover_outliers(df, coluna):
@@ -73,7 +66,6 @@ def remover_outliers(df, coluna):
     return df[(df[coluna] >= Q1 - 1.5*IQR) & (df[coluna] <= Q3 + 1.5*IQR)]
 
 def get_queries():
-    """Retorna dicionário com as queries SQL"""
     return {
         "Quantidade de ROMANEIO": """
             SELECT 
@@ -150,7 +142,6 @@ def get_queries():
     }
 
 def verificar_coluna_vazia(df, tipo_metrica):
-    """Verifica se as colunas necessárias estão vazias"""
     coluna_vazia = False
     coluna_problema = None
     
@@ -167,7 +158,6 @@ def verificar_coluna_vazia(df, tipo_metrica):
     return coluna_vazia, coluna_problema
 
 def criar_pivot(df, tipo_metrica, coluna_vazia):
-    """Cria a tabela pivot para o mapa de calor"""
     if tipo_metrica == "Quantidade de ROMANEIO":
         pivot = df.groupby(['mes', 'dia_semana'])['ROMANEIO'].nunique().reset_index()
         pivot = pivot.pivot(index='mes', columns='dia_semana', values='ROMANEIO')
@@ -182,7 +172,6 @@ def criar_pivot(df, tipo_metrica, coluna_vazia):
     return preencher_meses_dias(pivot)
 
 def criar_mapa_calor(pivot, tipo_metrica):
-    """Cria o gráfico de mapa de calor"""
     valores_texto = pivot.values.astype(int) if tipo_metrica == "Quantidade de ROMANEIO" else pivot.values.round(1)
     formato_hover = '%{x} - %{y}<br>Quantidade: %{z}<extra></extra>' if tipo_metrica == "Quantidade de ROMANEIO" else '%{x} - %{y}<br>Minutos: %{z:.1f}<extra></extra>'
     
@@ -204,7 +193,6 @@ def criar_mapa_calor(pivot, tipo_metrica):
     return fig
 
 def criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia):
-    """Cria a tabela de dados detalhada"""
     if tipo_metrica == "Quantidade de ROMANEIO":
         tabela = df.groupby(['mes', 'data', 'semana', 'dia_semana']).agg(
             quantidade_romaneio=('ROMANEIO', 'nunique')
@@ -232,26 +220,23 @@ def criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia):
     return tabela[colunas]
 
 def main():
-    # Sidebar
-    st.sidebar.title("Filtros")
+    st.sidebar.title("Filtros - Por Meses")
     
     engine = get_engine()
     lojas = consultar_lojas(engine)
-    loja_selecionada = st.sidebar.selectbox("Loja", lojas['LOJA'])
+    loja_selecionada = st.sidebar.selectbox("Loja", lojas['LOJA'], key="loja_meses")
     
     tipo_metrica = st.sidebar.selectbox(
         "Métrica",
-        ["Quantidade de ROMANEIO", 
-         "Mediana MINUTOS_DE_SEPARACAO",
-         "Mediana MINUTOS_ENTREGA",
-         "Mediana MINUTOS_ENTREGA_REALIZADA"]
+        ["Quantidade de ROMANEIO", "Mediana MINUTOS_DE_SEPARACAO",
+         "Mediana MINUTOS_ENTREGA", "Mediana MINUTOS_ENTREGA_REALIZADA"],
+        key="metrica_meses"
     )
     
     ano_atual = datetime.now().year
     anos = list(range(ano_atual, ano_atual-3, -1))
-    ano = st.sidebar.selectbox("Ano", anos)
+    ano = st.sidebar.selectbox("Ano", anos, key="ano_meses")
     
-    # Executar query
     queries = get_queries()
     query = queries[tipo_metrica].format(loja=loja_selecionada, ano=ano)
     
@@ -259,36 +244,28 @@ def main():
         df = executar_query(engine, query)
     
     if not df.empty:
-        # Mapear mês
         df['mes'] = df['mes_num'].map(MESES_NOMES)
         
-        # Título
         st.title(f"Mapa de calor - Ano {ano}")
         
-        # Verificar colunas vazias
         coluna_vazia, coluna_problema = verificar_coluna_vazia(df, tipo_metrica)
         
         if coluna_vazia:
-            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida. "
-                       f"NÃO É POSSÍVEL calcular a mediana de minutos.")
-            
-            # Tabela primeiro
+            st.warning(f"⚠️ A coluna '{coluna_problema}' da LOJA {loja_selecionada} não está preenchida.")
             st.markdown("### Tabela de Dados")
             tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
-            st.dataframe(tabela, width='stretch')
+            st.dataframe(tabela, use_container_width=True)
         
-        # Criar pivot e mapa
         pivot = criar_pivot(df, tipo_metrica, coluna_vazia)
         st.markdown(f"### {tipo_metrica}")
         fig = criar_mapa_calor(pivot, tipo_metrica)
         st.plotly_chart(fig, use_container_width=True)
         
-        # Tabela depois (se não houver problema)
         if not coluna_vazia:
             st.markdown("---")
             st.subheader("Tabela de Dados")
             tabela = criar_tabela_dados(df, tipo_metrica, ano, coluna_vazia)
-            st.dataframe(tabela, width='stretch')
+            st.dataframe(tabela, use_container_width=True)
     else:
         st.warning("Sem dados para o período selecionado")
 
