@@ -10,7 +10,7 @@ from sqlalchemy.pool import NullPool
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide")
+# st.set_page_config(layout="wide")
 
 @st.cache_resource
 def get_engine():
