@@ -1,5 +1,6 @@
 import pandas as pd
 from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
@@ -12,33 +13,39 @@ if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
     st.switch_page("app.py")
     st.stop()
 
-@st.cache_resource
 def criar_conexao():
-    """Cria conexão com MySQL - usando cache para performance"""
+    """Cria conexão com MySQL - SEM cache para evitar timeout"""
     config = st.secrets["connections"]["mysql"]
     url = (f"{config['dialect']}://{config['username']}:{config['password']}@"
-           f"{config['host']}:{config['port']}/{config['database']}")
-    return create_engine(url)
+           f"{config['host']}:{config['port']}/{config['database']}"
+           f"?charset=utf8mb4&connect_timeout=30")
+    return create_engine(
+        url,
+        poolclass=NullPool,
+        pool_pre_ping=True
+    )
 
 @st.cache_data(ttl=300)
 def obter_descricoes_disponiveis():
     """Obtém todas as descrições disponíveis"""
     engine = criar_conexao()
     query = "SELECT DISTINCT DSCR FROM comp_rate_ativ ORDER BY DSCR"
-    result = pd.read_sql_query(query, engine)
-    return result['DSCR'].tolist()
+    try:
+        result = pd.read_sql_query(query, engine)
+        return result['DSCR'].tolist()
+    finally:
+        engine.dispose()
 
 @st.cache_data(ttl=300)
 def obter_lojas_disponiveis():
     """Obtém todas as lojas disponíveis"""
     engine = criar_conexao()
-    query = """
-        SELECT DISTINCT cvu.LOJA 
-        FROM cadastros_veiculos_ultilizacao cvu
-        ORDER BY cvu.LOJA
-    """
-    result = pd.read_sql_query(query, engine)
-    return result['LOJA'].tolist()
+    query = "SELECT DISTINCT cvu.LOJA FROM cadastros_veiculos_ultilizacao cvu ORDER BY cvu.LOJA"
+    try:
+        result = pd.read_sql_query(query, engine)
+        return result['LOJA'].tolist()
+    finally:
+        engine.dispose()
 
 def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
     """Consulta custos totais entre datas com filtros"""
@@ -49,7 +56,6 @@ def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descr
         where_conditions.append(f"cvu.LOJA IN ({lojas_str})")
     
     if descricoes_selecionadas:
-        # Escapar aspas simples para evitar SQL injection
         descricoes_str = "','".join([d.replace("'", "''") for d in descricoes_selecionadas])
         where_conditions.append(f"c.DSCR IN ('{descricoes_str}')")
     
@@ -73,15 +79,16 @@ def consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas=None, descr
     """
     
     engine = criar_conexao()
-    return pd.read_sql_query(query, engine)
+    try:
+        return pd.read_sql_query(query, engine)
+    finally:
+        engine.dispose()
 
-# Nova função para buscar dados de TODAS as lojas (sem filtro de loja)
 def consulta_custos_todas_lojas(data_inicio, data_fim, descricoes_selecionadas=None):
     """Consulta custos de TODAS as lojas para o gráfico comparativo"""
     where_conditions = [f"a.CADASTRO BETWEEN '{data_inicio}' AND '{data_fim}'"]
     
     if descricoes_selecionadas:
-        # Escapar aspas simples para evitar SQL injection
         descricoes_str = "','".join([d.replace("'", "''") for d in descricoes_selecionadas])
         where_conditions.append(f"c.DSCR IN ('{descricoes_str}')")
     
@@ -99,29 +106,27 @@ def consulta_custos_todas_lojas(data_inicio, data_fim, descricoes_selecionadas=N
     """
     
     engine = criar_conexao()
-    return pd.read_sql_query(query, engine)
+    try:
+        return pd.read_sql_query(query, engine)
+    finally:
+        engine.dispose()
 
 def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descricoes_selecionadas=None):
     """Processa dados de custos com filtros + dados de todas as lojas"""
-    # Dados filtrados
     df = consulta_custos_totais(data_inicio, data_fim, lojas_selecionadas, descricoes_selecionadas)
     
     if df.empty:
         return None
     
-    # Dados de TODAS as lojas (para gráfico comparativo) - só busca se necessário
     df_todas_lojas = consulta_custos_todas_lojas(data_inicio, data_fim, descricoes_selecionadas)
     
-    # Remove duplicatas e valores nulos
     df = df.drop_duplicates(subset=['LOJA', 'CADASTRO', 'VALOR_UNITARIO_CUSTO'])
     df_todas_lojas = df_todas_lojas.dropna(subset=['LOJA', 'VALOR_UNITARIO_CUSTO'])
     
-    # Preparar dados
     df['CADASTRO'] = pd.to_datetime(df['CADASTRO'])
     df['DATA'] = df['CADASTRO'].dt.date
     df['MES_ANO'] = df['CADASTRO'].dt.to_period('M')
     
-    # Resumos
     resumos = {
         'original': df,
         'por_loja': df.groupby('LOJA')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index(),
@@ -132,11 +137,9 @@ def processar_dados_custos(data_inicio, data_fim, lojas_selecionadas=None, descr
         'por_ativ': df.groupby('CADASTRO_VEICULO')['VALOR_UNITARIO_CUSTO'].agg(['sum', 'mean', 'count']).reset_index()
     }
     
-    # Renomear colunas
     for key in ['por_loja', 'por_loja_todas', 'por_dia', 'por_mes', 'por_desc', 'por_ativ']:
         resumos[key].columns = [resumos[key].columns[0], 'TOTAL', 'MEDIA', 'QUANTIDADE']
     
-    # Converter MES_ANO para string
     resumos['por_mes']['MES_ANO'] = resumos['por_mes']['MES_ANO'].astype(str)
     resumos['por_mes'].columns = ['MES', 'TOTAL', 'MEDIA', 'QUANTIDADE']
     
@@ -154,16 +157,13 @@ def gerar_cores_neutrals(num_items):
 def gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas=None):
     """Gera gráfico baseado nas seleções"""
     if tipo_analise == "Por Loja":
-        # SEMPRE usa dados de TODAS as lojas para comparação
         df_plot = dados['por_loja_todas'].sort_values('LOJA')
         cores = gerar_cores_neutrals(len(df_plot))
         
         fig = go.Figure()
         
-        # Adiciona barras com destaque para lojas selecionadas
         for i, row in df_plot.iterrows():
             loja_num = row['LOJA']
-            # Destaca lojas selecionadas com opacidade diferente
             opacity = 1.0 if not lojas_selecionadas or loja_num in lojas_selecionadas else 0.4
             
             fig.add_trace(go.Bar(
@@ -185,7 +185,6 @@ def gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas=N
             height=500
         )
         
-        # Adiciona anotação se há filtro de loja
         if lojas_selecionadas:
             lojas_texto = ', '.join([str(l) for l in lojas_selecionadas])
             fig.add_annotation(
@@ -198,7 +197,6 @@ def gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas=N
         
         return fig
     
-    # Outros tipos de análise (usa dados filtrados)
     df_map = {
         "Por Dia": (dados['por_dia'], 'DATA', 'Centro de Custo por Dia'),
         "Por Mês": (dados['por_mes'], 'MES', 'Centro de Custo por Mês')
@@ -209,9 +207,7 @@ def gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas=N
     if tipo_grafico == "Pizza":
         return px.pie(df_plot, values='TOTAL', names=x_col, title=title)
     
-    grafico_map = {
-        "Barras": px.bar, "Linha": px.line, "Área": px.area
-    }
+    grafico_map = {"Barras": px.bar, "Linha": px.line, "Área": px.area}
     
     return grafico_map[tipo_grafico](
         df_plot, x=x_col, y='TOTAL', title=title,
@@ -225,17 +221,14 @@ def main():
     if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
 
-    # Sidebar para filtros
-    st.sidebar.header(" Filtros")
+    st.sidebar.header("🔍 Filtros")
     
-    # Datas
     col1, col2 = st.sidebar.columns(2)
     with col1:
         data_inicio = st.date_input("Data Início", value=datetime.now() - timedelta(days=30))
     with col2:
         data_fim = st.date_input("Data Fim", value=datetime.now())
     
-    # Obter opções
     try:
         descricoes_disponiveis = obter_descricoes_disponiveis()
         lojas_disponiveis = obter_lojas_disponiveis()
@@ -244,7 +237,6 @@ def main():
         descricoes_disponiveis = []
         lojas_disponiveis = list(range(1, 14))
     
-    # Filtros
     lojas_selecionadas = st.sidebar.multiselect(
         "Filtrar Dados por Loja(s)",
         options=lojas_disponiveis,
@@ -259,12 +251,10 @@ def main():
         help="Deixe vazio para mostrar todas as descrições"
     )
     
-    # Visualização
-    st.sidebar.header(" Visualização")
+    st.sidebar.header("📊 Visualização")
     tipo_analise = st.sidebar.selectbox("Tipo de Análise", ["Por Loja", "Por Dia", "Por Mês"])
     tipo_grafico = st.sidebar.selectbox("Tipo de Gráfico", ["Barras"])
     
-    # Processamento
     with st.spinner("Carregando dados..."):
         try:
             dados = processar_dados_custos(
@@ -282,11 +272,10 @@ def main():
             st.error(f"Erro ao processar dados: {e}")
             return
         
-        # Métricas principais (usa dados filtrados)
-        st.header(" Resumo Geral")
+        st.header("📈 Resumo Geral")
         if lojas_selecionadas:
             lojas_txt = ', '.join([f"Loja {l}" for l in sorted(lojas_selecionadas)])
-            st.info(f" Dados filtrados para: {lojas_txt}")
+            st.info(f"📍 Dados filtrados para: {lojas_txt}")
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -300,55 +289,47 @@ def main():
             st.metric("Centro de Custo Total", f"R$ {total_geral:,.2f}")
         with col2:
             st.metric("Mediana", f"R$ {mediana_geral:,.2f}")
-            st.caption(f" Média: R$ {media_geral:,.2f}")
+            st.caption(f"📊 Média: R$ {media_geral:,.2f}")
         with col3:
             st.metric("Registros", f"{total_registros:,}")
         with col4:
             label = "Lojas Filtradas" if lojas_selecionadas else "Lojas Ativas"
             st.metric(label, lojas_ativas)
 
-        # Gráfico Principal
-        st.header(" Análise Visual Principal")
+        st.header("📊 Análise Visual Principal")
         try:
             fig_principal = gerar_grafico_custos(dados, tipo_grafico, tipo_analise, lojas_selecionadas)
             st.plotly_chart(fig_principal, use_container_width=True)
         except Exception as e:
             st.error(f"Erro ao gerar gráfico: {e}")
         
-        # Dados Detalhados
-        st.header(" Dados Detalhados")
+        st.header("📋 Dados Detalhados")
         col1, col2 = st.columns(2)
 
         with col1:
-            filtro_placa = st.text_input(" Filtrar por Placa", placeholder="Digite parte da placa")
+            filtro_placa = st.text_input("🔍 Filtrar por Placa", placeholder="Digite parte da placa")
         with col2:
-            filtro_desc = st.text_input(" Filtrar por Descrição", placeholder="Digite a descrição")
+            filtro_desc = st.text_input("🔍 Filtrar por Descrição", placeholder="Digite a descrição")
 
-        # Aplicar filtros
         df_filtrado = dados['original'].copy()
         
         if filtro_placa:
-            df_filtrado = df_filtrado[
-                df_filtrado['PLACA'].str.contains(filtro_placa, case=False, na=False)
-            ]
+            df_filtrado = df_filtrado[df_filtrado['PLACA'].str.contains(filtro_placa, case=False, na=False)]
         
         if filtro_desc:
-            df_filtrado = df_filtrado[
-                df_filtrado['DESCRICAO'].str.contains(filtro_desc, case=False, na=False)
-            ]
+            df_filtrado = df_filtrado[df_filtrado['DESCRICAO'].str.contains(filtro_desc, case=False, na=False)]
 
         if filtro_placa or filtro_desc:
-            st.info(f" {len(df_filtrado)} registros encontrados")
+            st.info(f"📊 {len(df_filtrado)} registros encontrados")
 
         st.dataframe(df_filtrado.head(100), use_container_width=True)
         
-        # Resumos
-        st.header(" Resumos Detalhados")
+        st.header("📋 Resumos Detalhados")
         tab1, tab2, tab3, tab4 = st.tabs(["Por Loja", "Por Descrição", "Por Atividade", "Por Dia"])
         
         with tab1:
             if lojas_selecionadas:
-                st.caption(" Mostrando dados das lojas filtradas")
+                st.caption("📍 Mostrando dados das lojas filtradas")
             st.dataframe(dados['por_loja'], use_container_width=True)
         with tab2:
             st.dataframe(dados['por_desc'], use_container_width=True)
@@ -357,7 +338,6 @@ def main():
         with tab4:
             st.dataframe(dados['por_dia'], use_container_width=True)
         
-        # Download
         st.header("💾 Download")
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
