@@ -165,10 +165,8 @@ def format_br_currency(value):
 def format_number_br(value):
     """Formata número para padrão brasileiro com ponto e vírgula"""
     if isinstance(value, (int, float)):
-        # Para valores com decimais
         if value != int(value):
             return f"{value:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-        # Para valores inteiros
         else:
             return f"{int(value):,}".replace(',', '.')
     return str(value)
@@ -192,7 +190,6 @@ def consolidar_custos_entrega(df_custo_entregadores, df_rate, df_ROMANEIO):
         if row['total_romaneios'] > 0 else row['custo_total'], axis=1
     )
     
-    # Converter periodo para string para melhor visualização
     df_consolidado['PERIODO_STR'] = df_consolidado['PERIODO'].astype(str)
     
     return df_consolidado
@@ -204,6 +201,7 @@ def main():
     
     st.title("📊 Dashboard - Custos por Entrega e Tabela Centro de Custo")
     st.markdown("---")
+    
     if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
     
@@ -242,6 +240,27 @@ def main():
         type="primary",
         help="Clique para buscar dados do período selecionado"
     )
+    
+    # NOVO: Resumo do Cálculo
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Como Calculamos")
+    st.sidebar.markdown("""
+    **Custo por Entrega:**
+    
+    1. **Custo Total** = 
+       - Custo Entregadores + 
+       - Custo Frota
+    
+    2. **Custo por Entrega** = 
+       - Custo Total ÷ Total de Romaneios
+    
+    **Fontes de Dados:**
+    - 💰 Entregadores: contas_pagar
+    - 🚚 Frota: comp_rate_ativ (rateio)
+    - 📦 Romaneios: expedicao_itens
+    
+    **Agrupamento:** Por loja e mês
+    """)
     
     # Verificar se precisa atualizar dados
     key_periodo = f"{data_inicio}_{data_fim}"
@@ -299,7 +318,7 @@ def main():
     
     st.markdown("---")
 
-        # Tabelas primeiro - antes dos gráficos
+    # Tabelas primeiro - antes dos gráficos
     st.subheader("📋 Tabela Detalhada")
     
     # Preparar tabela formatada
@@ -338,7 +357,7 @@ def main():
     
     st.markdown("---")
     
-    # NOVA SEÇÃO: Detalhes do Centro de Custo - comp_rate_ativ
+    # SEÇÃO: Detalhes do Centro de Custo - comp_rate_ativ
     st.subheader("- Detalhes dos Centros de Custo - Rateio")
     
     # Filtros em 3 colunas
@@ -370,7 +389,6 @@ def main():
     
     # Mostrar tabela filtrada
     if len(df_filtrado) > 0:
-        # Formatar valores monetários na tabela
         df_exibir = df_filtrado.copy()
         df_exibir['VALOR_UNITARIO_CUSTO'] = df_exibir['VALOR_UNITARIO_CUSTO'].apply(
             lambda x: format_br_currency(x) if pd.notna(x) else 'N/A'
@@ -379,7 +397,6 @@ def main():
             lambda x: format_br_currency(x) if pd.notna(x) else 'N/A'
         )
         
-        # Renomear colunas para exibição
         colunas_exibir = {
             'LOJA': 'Loja',
             'COMPRA': 'Compra',
@@ -401,21 +418,14 @@ def main():
     
     st.markdown("---")
     
-    # Filtrar dados - excluir LOJA = 1 dos gráficos principais
-    df_sem_loja1 = df[df['LOJA'] != 1].copy()
-    df_loja1 = df[df['LOJA'] == 1].copy()
-    
-    # Gráficos por Loja - Custo Total por Mês (LOJA 1 até 12)
+    # Gráficos por Loja
     st.subheader("- Custo dos Entregadores + Custo da Frota - Cada Loja")
     
-    # Criar gráficos para cada loja de 1 a 12
     lojas_disponiveis = sorted(df['LOJA'].unique())
     lojas_ate_12 = [loja for loja in lojas_disponiveis if loja <= 12]
     
-    # Definir cores alternadas - azul escuro e azul claro
-    cores_alternadas = ['#1f4e79', '#87ceeb']  # azul escuro e azul claro
+    cores_alternadas = ['#1f4e79', '#87ceeb']
     
-    # Organizar em linhas de 2 gráficos
     for i in range(0, len(lojas_ate_12), 2):
         cols = st.columns(2)
         
@@ -424,7 +434,6 @@ def main():
             
             if len(df_loja) > 0:
                 with cols[j]:
-                    # Criar cores para as barras baseado no índice do mês
                     cores_barras = [cores_alternadas[idx % 2] for idx in range(len(df_loja))]
                     
                     fig_loja = px.bar(
@@ -435,7 +444,6 @@ def main():
                         text='custo_total'
                     )
                     
-                    # Aplicar cores alternadas nas barras e formatação PT-BR
                     fig_loja.update_traces(
                         texttemplate=[f'R$ {format_number_br(val)}' for val in df_loja['custo_total']], 
                         textposition='outside',
@@ -454,10 +462,9 @@ def main():
                 with cols[j]:
                     st.info(f"Loja {loja}: Sem dados")
     
-    # Segundo gráfico - Custo por Entrega por Mês - Cada Loja
+    # Custo por Entrega por Mês
     st.subheader("- Custo por Entrega por Mês - Cada Loja")
     
-    # Organizar em linhas de 2 gráficos
     for i in range(0, len(lojas_ate_12), 2):
         cols = st.columns(2)
         
@@ -466,7 +473,6 @@ def main():
             
             if len(df_loja) > 0:
                 with cols[j]:
-                    # Criar cores para as barras baseado no índice do mês
                     cores_barras = [cores_alternadas[idx % 2] for idx in range(len(df_loja))]
                     
                     fig_loja_entrega = px.bar(
@@ -477,7 +483,6 @@ def main():
                         text='custo_por_entrega'
                     )
                     
-                    # Aplicar cores alternadas nas barras e formatação PT-BR
                     fig_loja_entrega.update_traces(
                         texttemplate=[f'R$ {format_number_br(val)}' for val in df_loja['custo_por_entrega']], 
                         textposition='outside',
@@ -496,14 +501,12 @@ def main():
                 with cols[j]:
                     st.info(f"Loja {loja}: Sem dados")
     
-    # Gráficos de comparação entregadores vs frota - separados
+    # Comparação Entregadores vs Frota
     st.subheader("- Comparação: Custos Entregadores vs Frota")
     
-    # Preparar dados para entregadores
     df_entregadores = df.groupby(['LOJA', 'PERIODO_STR'])['custo_entregadores'].sum().reset_index()
     df_frota = df.groupby(['LOJA', 'PERIODO_STR'])['VALOR_CUSTO_LOJA'].sum().reset_index()
     
-    # Gráfico de Entregadores
     st.subheader("- Custos de Entregadores por Loja e Período")
     
     fig_entregadores = px.bar(
@@ -516,7 +519,6 @@ def main():
         color_discrete_sequence=[cores_alternadas[i % 2] for i in range(len(df_entregadores['PERIODO_STR'].unique()))]
     )
     
-    # Formatação PT-BR para entregadores
     fig_entregadores.update_traces(
         texttemplate=[f'R$ {format_number_br(val)}' for val in df_entregadores['custo_entregadores']], 
         textposition='outside'
@@ -528,7 +530,6 @@ def main():
     )
     st.plotly_chart(fig_entregadores, use_container_width=True)
     
-    # Gráfico de Frota
     st.subheader("🚚 Custos de Frota por Loja e Período")
     
     fig_frota = px.bar(
@@ -541,7 +542,6 @@ def main():
         color_discrete_sequence=[cores_alternadas[i % 2] for i in range(len(df_frota['PERIODO_STR'].unique()))]
     )
     
-    # Formatação PT-BR para frota
     fig_frota.update_traces(
         texttemplate=[f'R$ {format_number_br(val)}' for val in df_frota['VALOR_CUSTO_LOJA']], 
         textposition='outside'
@@ -553,6 +553,5 @@ def main():
     )
     st.plotly_chart(fig_frota, use_container_width=True)
 
-# Executar dashboard
 if __name__ == "__main__":
     main()
