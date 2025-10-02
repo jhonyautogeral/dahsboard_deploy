@@ -39,11 +39,6 @@ def preparar_dados(str_inicio,str_fim,):
     # Limpar coluna PLACA removendo espaços em branco e caracteres especiais
     df['PLACA'] = df['PLACA'].str.replace(r'\s+', '', regex=True).str.replace(r'[^A-Za-z0-9]', '', regex=True)
     
-    # # Agrupar por CADASTRO, loja, placa, TIPO e somar COMBUSTIVEL_1_LITROS, VALOR_TOTAL e KM
-    # df = df.groupby(['CADASTRO','PLACA','LOJA','TIPO']).agg({'VALOR_TOTAL': 'sum' }).reset_index()
     df_custo_somado = df.groupby(['LOJA', 'CADASTRO'], as_index=False)['VALOR_TOTAL'].sum()
-
-    # Retornar um dataframe com os dados preparados
-    # df = df.rename(columns={'CADASTRO': 'DATA', 'COMBUSTIVEL_1_LITROS': 'LITROS', 'VALOR_TOTAL': 'VALOR', 'KM': 'KM'})
 
     return df_custo_somado

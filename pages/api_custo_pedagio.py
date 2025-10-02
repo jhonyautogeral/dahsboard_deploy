@@ -22,7 +22,7 @@ def calcula_custo_pedagio(str_inicio,str_fim):
                 -- Origem: Veloe
                 SELECT 
                     cv.LOJA AS LOJA_VEICULO, 
-                    ve.data_utilizacao AS DATA_ULTILIZACAO
+                    ve.data_utilizacao AS DATA_ULTILIZACAO,
                     ve.valor_cobrado AS CUSTO
                 FROM cadastros_veiculos_ultilizacao cv
                 LEFT JOIN veloe_extrato ve ON cv.PLACA = ve.placa
