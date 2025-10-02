@@ -32,7 +32,7 @@ class AccessControl:
         {"file": "custo_entrega_entregadores.py", "label": "Custo Entregadores e Entrega", "permitir": PERMISSIONS.get("custo_entrega_entregadores.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
         {"file": "entrega_logistica_40.py", "label": "Entrega 40 Logística", "permitir": PERMISSIONS.get("entrega_logistica_40.py")},
-        {"file": "modo_venda_itens_curva.py", "label": "Vendas intens e curva", "permitir": PERMISSIONS.get("modo_venda_itens_curva.py")},
+        {"file": "modo_venda_itens_curva.py", "label": "Vendas itens e curva", "permitir": PERMISSIONS.get("modo_venda_itens_curva.py")},
         {"file": "modo_vendas_sem_curva.py", "label": "Vendas sem curva", "permitir": PERMISSIONS.get("modo_vendas_sem_curva.py")},
         {"file": "mapa_calor.py", "label": "Mapa de Calor", "permitir": PERMISSIONS.get("mapa_calor.py")},
         {"file": "tipos_entrega.py", "label": "Quantidade de Entrega por Tipo", "permitir": PERMISSIONS.get("tipos_entrega.py")},
