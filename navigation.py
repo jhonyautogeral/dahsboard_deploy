@@ -40,8 +40,7 @@ class AccessControl:
         {"file": "produto_cruzado_fraga.py", "label": "Produtos Cruzado Fraga", "permitir": PERMISSIONS.get("produto_cruzado_fraga.py")},
         {"file": "motorista_ocioso.py", "label": "Motoristas Ocioso", "permitir": PERMISSIONS.get("motorista_ocioso.py")},
         {"file": "entrega_em_40.py", "label": "Endicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
-        #{"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")}, # Removido temporariamente pois centro de custo será centralizado em outro dashboard 
-        # usando tabela comp_rateio do banco e não mais necessario usar as apis com varios joins entre tabelas
+        #{"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")},
         # commit Removendo dashboard centro_custo.py por talvez nao ser mais necessario, pois sera centralizado em outro dashboard e agora as informacoes estao na tabela comp_rateio, sem a necessidade de varios joins e usar as varias apis
     ]
     
