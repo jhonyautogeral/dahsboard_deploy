@@ -5,10 +5,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Proteção de acesso
-# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-#     st.warning("Você não está logado. Redirecionando para a página de login...")
-#     st.switch_page("app.py")
-#     st.stop()
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()
 
 def criar_conexao():
     """Cria conexão com MySQL"""
@@ -251,18 +251,24 @@ def main():
     st.sidebar.markdown("### Como Calculamos")
     st.sidebar.markdown("""
     **Custo por Entrega:**
-    
+                        
+    **Custo Entregadores:** Total pago aos entregadores no período. 
+                         
+    **Custo Frota:** Total rateado por lojas dos custos de frota no período.
+                        
+    **Total de Expedições:** Total de expedições por loja (Entrega realizada ou não) no período.
+                        
     1. **Custo Total** = 
        - Custo Entregadores + 
        - Custo Frota
     
     2. **Custo por Entrega** = 
-       - Custo Total ÷ Total de Romaneios
+       - Custo Total ÷ Total de Expedições
     
     **Fontes de Dados:**
     - 💰 Entregadores: contas_pagar
     - 🚚 Frota: comp_rate_ativ (rateio)
-    - 📦 Romaneios: expedicao_itens
+    - 📦 Expedições: expedicao_itens
     
     **Agrupamento:** Por loja e mês
     """)
