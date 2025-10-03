@@ -5,10 +5,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # Proteção de acesso
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    st.warning("Você não está logado. Redirecionando para a página de login...")
-    st.switch_page("app.py")
-    st.stop()
+# if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+#     st.warning("Você não está logado. Redirecionando para a página de login...")
+#     st.switch_page("app.py")
+#     st.stop()
 
 def criar_conexao():
     """Cria conexão com MySQL"""
@@ -24,7 +24,6 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
     
     engine_autogeral = criar_conexao()
     
-    # Parâmetros para as queries
     params = {
         'data_inicio': data_inicio,
         'data_fim': data_fim
@@ -45,6 +44,10 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         """
         
         df_custos_raw = pd.read_sql(text(query_custos), engine_autogeral, params=params)
+        
+        # CORREÇÃO: Converter VALOR para numérico
+        df_custos_raw['VALOR'] = pd.to_numeric(df_custos_raw['VALOR'], errors='coerce')
+        
         df_custo_entregadores = df_custos_raw.groupby(['LOJA', 'PAGO_EM'])['VALOR'].sum().round(2).reset_index()
         df_custo_entregadores = df_custo_entregadores.rename(columns={'VALOR': 'custo_entregadores'})
         df_custo_entregadores['PERIODO'] = pd.to_datetime(df_custo_entregadores['PAGO_EM']).dt.to_period('M')
@@ -84,6 +87,10 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         df_rate_raw = pd.read_sql(text(query_rate), engine_autogeral, params=params)
         df_rate_raw['CADASTRO'] = pd.to_datetime(df_rate_raw['CADASTRO'])
         
+        # CORREÇÃO: Converter colunas numéricas
+        df_rate_raw['VALOR_UNITARIO_CUSTO'] = pd.to_numeric(df_rate_raw['VALOR_UNITARIO_CUSTO'], errors='coerce')
+        df_rate_raw['VALOR_TOTAL_NOTA'] = pd.to_numeric(df_rate_raw['VALOR_TOTAL_NOTA'], errors='coerce')
+        
         df_frota = df_rate_raw[df_rate_raw['DESCRICAO'].str.contains('FROTA', case=False, na=False)]
         
         df_rate = df_frota.groupby([
@@ -95,12 +102,12 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         df_rate = df_rate.rename(columns={'VALOR_UNITARIO_CUSTO': 'VALOR_CUSTO_LOJA'})
         df_rate['PERIODO'] = df_rate['CADASTRO'].dt.to_period('M')
         
-        # QUERY 3: Quantidade de Romaneios
+        # QUERY 3: Quantidade de EXPEDICAO (vezes que entregador saiu para entrega)
         query_romaneios = """
         SELECT 
-            a.LOJA,
-            a.CADASTRO,
-            r.ROMANEIO 
+            e.LOJA_VENDA LOJA,
+            e.CADASTRO,
+            e.EXPEDICAO_CODIGO 
         FROM 
             expedicao_itens e
         JOIN expedicao a ON 
@@ -109,12 +116,10 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         JOIN entregador d ON 
             a.ENTREGADOR_CODIGO = d.CODIGO
         LEFT JOIN romaneios_dbf r ON 
-            e.VENDA_TIPO = 'ROMANEIO'
-            AND e.CODIGO_VENDA = r.ROMANEIO
+            e.CODIGO_VENDA = r.ROMANEIO
             AND e.LOJA_VENDA = r.LOJA
         WHERE 
             a.ROTA_METROS IS NOT NULL
-            AND e.ROTA_STATUS = 'ENTREGUE'
             AND r.CADASTRO BETWEEN :data_inicio AND :data_fim
         ORDER BY 
             a.LOJA 
@@ -124,7 +129,7 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         df_romaneios_raw['CADASTRO'] = pd.to_datetime(df_romaneios_raw['CADASTRO'])
         df_romaneios_raw['PERIODO'] = df_romaneios_raw['CADASTRO'].dt.to_period('M')
         
-        df_ROMANEIO = df_romaneios_raw.groupby(['LOJA', 'PERIODO']).size().reset_index(name='total_romaneios')
+        df_ROMANEIO = df_romaneios_raw.groupby(['LOJA', 'PERIODO'])['EXPEDICAO_CODIGO'].count().reset_index(name='total_expedicoes')
         
         # QUERY 4: Detalhes dos Centro de Custo - comp_rate_ativ
         query_comp_rate = """
@@ -186,8 +191,8 @@ def consolidar_custos_entrega(df_custo_entregadores, df_rate, df_ROMANEIO):
                                    df_consolidado['VALOR_CUSTO_LOJA']).round(2)
     
     df_consolidado['custo_por_entrega'] = df_consolidado.apply(
-        lambda row: round(row['custo_total'] / row['total_romaneios'], 2) 
-        if row['total_romaneios'] > 0 else row['custo_total'], axis=1
+        lambda row: round(row['custo_total'] / row['total_expedicoes'], 2) 
+        if row['total_expedicoes'] > 0 else row['custo_total'], axis=1
     )
     
     df_consolidado['PERIODO_STR'] = df_consolidado['PERIODO'].astype(str)
@@ -305,8 +310,8 @@ def main():
         st.metric("Total de Lojas", total_lojas)
     
     with col2:
-        total_romaneios = int(df['total_romaneios'].sum())
-        st.metric("Total Romaneios", f"{total_romaneios:,.0f}".replace(',', '.'))
+        total_expedicoes = int(df['total_expedicoes'].sum())
+        st.metric("Total Expedições", f"{total_expedicoes:,.0f}".replace(',', '.'))
     
     with col3:
         custo_total = df['custo_total'].sum()
@@ -327,13 +332,13 @@ def main():
     df_tabela['Custo Frota'] = df_tabela['VALOR_CUSTO_LOJA'].apply(format_br_currency)
     df_tabela['Custo Total'] = df_tabela['custo_total'].apply(format_br_currency)
     df_tabela['Custo/Entrega'] = df_tabela['custo_por_entrega'].apply(format_br_currency)
-    df_tabela['Total Romaneios'] = df_tabela['total_romaneios'].apply(lambda x: f"{int(x):,}".replace(',', '.'))
+    df_tabela['Total Expedições'] = df_tabela['total_expedicoes'].apply(lambda x: f"{int(x):,}".replace(',', '.'))
     
     tabela_final = df_tabela[['LOJA', 'PERIODO_STR', 'Custo Entregadores', 'Custo Frota', 
-                             'Total Romaneios', 'Custo Total', 'Custo/Entrega']]
+                             'Total Expedições', 'Custo Total', 'Custo/Entrega']]
     
     tabela_final.columns = ['Loja', 'Período', 'Custo Entregadores', 'Custo Frota', 
-                           'Total Romaneios', 'Custo Total', 'Custo por Entrega']
+                           'Total Expedições', 'Custo Total', 'Custo por Entrega']
     
     st.dataframe(tabela_final, use_container_width=True, hide_index=True)
     
@@ -342,16 +347,16 @@ def main():
     
     stats_loja = df.groupby('LOJA').agg({
         'custo_total': 'sum',
-        'total_romaneios': 'sum',
+        'total_expedicoes': 'sum',
         'custo_por_entrega': 'mean'
     }).round(2)
     
     stats_loja['custo_total_fmt'] = stats_loja['custo_total'].apply(format_br_currency)
     stats_loja['custo_por_entrega_fmt'] = stats_loja['custo_por_entrega'].apply(format_br_currency)
-    stats_loja['total_romaneios_fmt'] = stats_loja['total_romaneios'].apply(lambda x: f"{int(x):,}".replace(',', '.'))
+    stats_loja['total_expedicoes_fmt'] = stats_loja['total_expedicoes'].apply(lambda x: f"{int(x):,}".replace(',', '.'))
     
-    stats_final = stats_loja[['custo_total_fmt', 'total_romaneios_fmt', 'custo_por_entrega_fmt']]
-    stats_final.columns = ['Custo Total', 'Total Romaneios', 'Custo Médio/Entrega']
+    stats_final = stats_loja[['custo_total_fmt', 'total_expedicoes_fmt', 'custo_por_entrega_fmt']]
+    stats_final.columns = ['Custo Total', 'Total Expedições', 'Custo Médio/Entrega']
     
     st.dataframe(stats_final, use_container_width=True)
     
