@@ -383,7 +383,7 @@ def main():
     tabela_final.columns = ['Loja', 'Período', 'Custo Entregadores', 'Custo Frota', 
                            'Total Expedições', 'Custo Total', 'Custo por Entrega']
     
-    st.dataframe(tabela_final, width='stretch', hide_index=True)
+    st.dataframe(tabela_final, use_container_width=True, hide_index=True)
     
     # Estatísticas por loja
     st.subheader("📈 Estatísticas por Loja")
@@ -401,7 +401,7 @@ def main():
     stats_final = stats_loja[['custo_total_fmt', 'total_expedicoes_fmt', 'custo_por_entrega_fmt']]
     stats_final.columns = ['Custo Total', 'Total Expedições', 'Custo Médio/Entrega']
     
-    st.dataframe(stats_final, width='stretch', hide_index=True)
+    st.dataframe(stats_final, use_container_width=True, hide_index=True)
     
     st.markdown("---")
     
@@ -459,7 +459,7 @@ def main():
         
         df_exibir = df_exibir.rename(columns=colunas_exibir)
         
-        st.dataframe(df_exibir, width='stretch', hide_index=True)
+        st.dataframe(df_exibir, use_container_width=True, hide_index=True)
         st.info(f"- Mostrando {len(df_filtrado)} registros")
     else:
         st.warning("- Nenhum registro encontrado com os filtros aplicados")
