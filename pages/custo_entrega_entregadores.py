@@ -17,7 +17,7 @@ def criar_conexao():
            f"{config['host']}:{config['port']}/{config['database']}")
     return create_engine(url)
 
-def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
+def gerar_dataframes_custos(data_inicio='2025-03-01 00:00:00', data_fim='2025-06-06 23:59:59'):
     """
     Função consolidada para gerar os 3 dataframes e calcular custo por entrega
     """
@@ -44,13 +44,11 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         """
         
         df_custos_raw = pd.read_sql(text(query_custos), engine_autogeral, params=params)
-        
-        # CORREÇÃO: Converter VALOR para numérico
         df_custos_raw['VALOR'] = pd.to_numeric(df_custos_raw['VALOR'], errors='coerce')
         
         df_custo_entregadores = df_custos_raw.groupby(['LOJA', 'PAGO_EM'])['VALOR'].sum().round(2).reset_index()
         df_custo_entregadores = df_custo_entregadores.rename(columns={'VALOR': 'custo_entregadores'})
-        df_custo_entregadores['PERIODO'] = pd.to_datetime(df_custo_entregadores['PAGO_EM']).dt.to_period('M')
+        df_custo_entregadores['PERIODO'] = pd.to_datetime(df_custo_entregadores['PAGO_EM'], format='%Y-%m-%d %H:%M:%S').dt.to_period('M')
         
         # QUERY 2: Custos de Frota
         query_rate = """
@@ -72,7 +70,7 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
             c.COMP_CODI = a.COMPRA
             and c.COMP_LOJA = a.LOJA
         left join cadastros_ativos ca on
-            c.CADA_ATIV_ID = ca.CADA_ATIV_ID
+                    c.CADA_ATIV_ID = ca.CADA_ATIV_ID
         left join cadastros_veiculos cv on
             ca.CADA_VEIC_ID = cv.CADA_VEIC_ID
         left join cadastros_veiculos_ultilizacao cvu on
@@ -85,9 +83,7 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         """
         
         df_rate_raw = pd.read_sql(text(query_rate), engine_autogeral, params=params)
-        df_rate_raw['CADASTRO'] = pd.to_datetime(df_rate_raw['CADASTRO'])
-        
-        # CORREÇÃO: Converter colunas numéricas
+        df_rate_raw['CADASTRO'] = pd.to_datetime(df_rate_raw['CADASTRO'], format='%Y-%m-%d %H:%M:%S')
         df_rate_raw['VALOR_UNITARIO_CUSTO'] = pd.to_numeric(df_rate_raw['VALOR_UNITARIO_CUSTO'], errors='coerce')
         df_rate_raw['VALOR_TOTAL_NOTA'] = pd.to_numeric(df_rate_raw['VALOR_TOTAL_NOTA'], errors='coerce')
         
@@ -102,36 +98,47 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         df_rate = df_rate.rename(columns={'VALOR_UNITARIO_CUSTO': 'VALOR_CUSTO_LOJA'})
         df_rate['PERIODO'] = df_rate['CADASTRO'].dt.to_period('M')
         
-        # QUERY 3: Quantidade de EXPEDICAO (vezes que entregador saiu para entrega)
+        # QUERY 3: Quantidade de EXPEDICAO 
         query_romaneios = """
-        SELECT 
-            e.LOJA_VENDA LOJA,
-            e.CADASTRO,
-            e.EXPEDICAO_CODIGO 
-        FROM 
-            expedicao_itens e
-        JOIN expedicao a ON 
-            e.EXPEDICAO_CODIGO = a.EXPEDICAO
-            AND e.EXPEDICAO_LOJA = a.LOJA
-        JOIN entregador d ON 
-            a.ENTREGADOR_CODIGO = d.CODIGO
-        LEFT JOIN romaneios_dbf r ON 
-            e.CODIGO_VENDA = r.ROMANEIO
-            AND e.LOJA_VENDA = r.LOJA
-        WHERE 
-            a.ROTA_METROS IS NOT NULL
-            AND r.CADASTRO BETWEEN :data_inicio AND :data_fim
-        ORDER BY 
-            a.LOJA 
+        SELECT
+            E.LOJA,
+            DATE_FORMAT(E.CADASTRO, '%m/%Y') AS PERIODO,
+            COUNT(E.EXPEDICAO) AS EXPEDICAO_CODIGO,
+            SUM(COALESCE(EI.ITEMS_EXPEDICAO, 0)) AS "ITENS DA EXPEDICAO"
+        FROM expedicao E
+        LEFT JOIN (
+            SELECT 
+                EXPEDICAO_CODIGO,
+                EXPEDICAO_LOJA,
+                SUM(ITEM) AS ITEMS_EXPEDICAO
+            FROM expedicao_itens
+            WHERE
+                ROTA_METROS IS NOT NULL
+                AND VENDA_TIPO = 'ROMANEIO'
+                AND COMPRADOR_NOME NOT LIKE ('AUTO GERAL AUTOPECAS LTDA%')
+                AND CADASTRO BETWEEN :data_inicio and :data_fim
+            GROUP BY EXPEDICAO_CODIGO, EXPEDICAO_LOJA
+        ) EI 
+            ON EI.EXPEDICAO_CODIGO = E.EXPEDICAO
+            AND EI.EXPEDICAO_LOJA = E.LOJA
+        WHERE
+            E.CADASTRO BETWEEN :data_inicio and :data_fim
+        GROUP BY
+            E.LOJA,
+            DATE_FORMAT(E.CADASTRO, '%m/%Y')
+        ORDER BY
+            E.LOJA;
         """
-        
+
         df_romaneios_raw = pd.read_sql(text(query_romaneios), engine_autogeral, params=params)
-        df_romaneios_raw['CADASTRO'] = pd.to_datetime(df_romaneios_raw['CADASTRO'])
-        df_romaneios_raw['PERIODO'] = df_romaneios_raw['CADASTRO'].dt.to_period('M')
+
+        # Converter PERIODO para period
+        df_romaneios_raw['PERIODO'] = pd.to_datetime(df_romaneios_raw['PERIODO'], format='%m/%Y').dt.to_period('M')
+
+        # Apenas renomear 
+        df_ROMANEIO = df_romaneios_raw.rename(columns={'EXPEDICAO_CODIGO': 'total_expedicoes'})
         
-        df_ROMANEIO = df_romaneios_raw.groupby(['LOJA', 'PERIODO'])['EXPEDICAO_CODIGO'].count().reset_index(name='total_expedicoes')
-        
-        # QUERY 4: Detalhes dos Centro de Custo - comp_rate_ativ
+        # QUERY 4: Detalhes dos Centro de Custo
         query_comp_rate = """
             SELECT DISTINCT
                 cvu.LOJA AS LOJA,
@@ -162,7 +169,6 @@ def gerar_dataframes_custos(data_inicio='2025-03-01', data_fim='2025-06-06'):
         engine_autogeral.dispose()
         return None, None, None, None
 
-
 def format_br_currency(value):
     """Formata valor para padrão brasileiro R$"""
     return f"R$ {value:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -176,7 +182,7 @@ def format_number_br(value):
             return f"{int(value):,}".replace(',', '.')
     return str(value)
 
-def consolidar_custos_entrega(df_custo_entregadores, df_rate, df_ROMANEIO):
+def consolidar_custos_entrega(df_custo_entregadores, df_rate, df_ROMANEIO, data_inicio=None, data_fim=None):
     """Consolida os 3 dataframes e calcula custo por entrega"""
     
     df_rate_grouped = df_rate.groupby(['LOJA', 'PERIODO'])['VALOR_CUSTO_LOJA'].sum().reset_index()
@@ -186,6 +192,15 @@ def consolidar_custos_entrega(df_custo_entregadores, df_rate, df_ROMANEIO):
     df_consolidado = pd.merge(df_merged, df_rate_grouped, on=['LOJA', 'PERIODO'], how='outer')
     
     df_consolidado = df_consolidado.fillna(0)
+    
+    # Filtrar por período
+    if data_inicio and data_fim:
+        periodo_inicio = pd.Period(data_inicio, freq='M')
+        periodo_fim = pd.Period(data_fim, freq='M')
+        df_consolidado = df_consolidado[
+            (df_consolidado['PERIODO'] >= periodo_inicio) & 
+            (df_consolidado['PERIODO'] <= periodo_fim)
+        ]
     
     df_consolidado['custo_total'] = (df_consolidado['custo_entregadores'] + 
                                    df_consolidado['VALOR_CUSTO_LOJA']).round(2)
@@ -198,6 +213,12 @@ def consolidar_custos_entrega(df_custo_entregadores, df_rate, df_ROMANEIO):
     df_consolidado['PERIODO_STR'] = df_consolidado['PERIODO'].astype(str)
     
     return df_consolidado
+
+def filtrar_por_lojas(df, lojas_selecionadas):
+    """Filtra dataframe pelas lojas selecionadas"""
+    if 'Todas' in lojas_selecionadas or not lojas_selecionadas:
+        return df
+    return df[df['LOJA'].isin(lojas_selecionadas)]
 
 def main():
     """Cria o dashboard principal"""
@@ -214,7 +235,6 @@ def main():
     st.sidebar.header("🗓️ Período de Análise")
     st.sidebar.markdown("Selecione o período para análise dos custos:")
     
-    # Calendários para seleção de datas
     col1, col2 = st.sidebar.columns(2)
     with col1:
         data_inicio = st.date_input(
@@ -230,23 +250,37 @@ def main():
             help="Selecione a data final do período"
         )
     
-    # Validação de datas
     if data_inicio > data_fim:
         st.sidebar.error("❌ Data início deve ser menor que data fim!")
         return
     
-    # Mostrar período selecionado
     dias_periodo = (data_fim - data_inicio).days + 1
     st.sidebar.success(f"✅ Período: {dias_periodo} dias")
     
-    # Botão para atualizar
+    # ====== FILTRO DE LOJAS ======
+    st.sidebar.markdown("---")
+    st.sidebar.header("🏪 Filtrar por Loja")
+    
+    # Carregar dados temporariamente para pegar lista de lojas
+    if 'df_consolidado' in st.session_state:
+        lojas_disponiveis = ['Todas'] + sorted(st.session_state.df_consolidado['LOJA'].unique().tolist())
+    else:
+        lojas_disponiveis = ['Todas']
+    
+    lojas_selecionadas = st.sidebar.multiselect(
+        "Selecione as lojas:",
+        options=lojas_disponiveis,
+        default=['Todas'],
+        help="Selecione uma ou mais lojas para análise"
+    )
+    
     atualizar = st.sidebar.button(
         "🔄 Atualizar Dados", 
         type="primary",
         help="Clique para buscar dados do período selecionado"
     )
     
-    # NOVO: Resumo do Cálculo
+    # Sidebar informações
     st.sidebar.markdown("---")
     st.sidebar.markdown("### Como Calculamos")
     st.sidebar.markdown("""
@@ -273,7 +307,6 @@ def main():
     **Agrupamento:** Por loja e mês
     """)
     
-    # Verificar se precisa atualizar dados
     key_periodo = f"{data_inicio}_{data_fim}"
     
     if atualizar or 'ultimo_periodo' not in st.session_state or st.session_state.ultimo_periodo != key_periodo:
@@ -289,17 +322,21 @@ def main():
             )
             
             if df_custo is not None:
-                st.session_state.df_consolidado = consolidar_custos_entrega(df_custo, df_rate, df_romaneio)
+                # CORREÇÃO: Passar data_inicio e data_fim
+                st.session_state.df_consolidado = consolidar_custos_entrega(
+                    df_custo, df_rate, df_romaneio,
+                    data_inicio=data_inicio,
+                    data_fim=data_fim
+                )
                 st.session_state.df_comp_rate_ativ = df_comp_rate_ativ
                 st.session_state.dados_atualizados = False
                 st.success(f"Dados carregados com sucesso! Período: {data_inicio} até {data_fim}")
             else:
                 st.error("Erro ao carregar dados")
                 return
-    
-    df = st.session_state.df_consolidado
-    df_comp_rate = st.session_state.df_comp_rate_ativ
-    
+    df = filtrar_por_lojas(st.session_state.df_consolidado, lojas_selecionadas)
+    df_comp_rate = filtrar_por_lojas(st.session_state.df_comp_rate_ativ, lojas_selecionadas)
+
     # Mostrar informações do período na sidebar
     st.sidebar.markdown("---")
     
@@ -346,7 +383,7 @@ def main():
     tabela_final.columns = ['Loja', 'Período', 'Custo Entregadores', 'Custo Frota', 
                            'Total Expedições', 'Custo Total', 'Custo por Entrega']
     
-    st.dataframe(tabela_final, use_container_width=True, hide_index=True)
+    st.dataframe(tabela_final, width='stretch', hide_index=True)
     
     # Estatísticas por loja
     st.subheader("📈 Estatísticas por Loja")
@@ -364,7 +401,7 @@ def main():
     stats_final = stats_loja[['custo_total_fmt', 'total_expedicoes_fmt', 'custo_por_entrega_fmt']]
     stats_final.columns = ['Custo Total', 'Total Expedições', 'Custo Médio/Entrega']
     
-    st.dataframe(stats_final, use_container_width=True)
+    st.dataframe(stats_final, width='stretch', hide_index=True)
     
     st.markdown("---")
     
@@ -422,7 +459,7 @@ def main():
         
         df_exibir = df_exibir.rename(columns=colunas_exibir)
         
-        st.dataframe(df_exibir, use_container_width=True, hide_index=True)
+        st.dataframe(df_exibir, width='stretch', hide_index=True)
         st.info(f"- Mostrando {len(df_filtrado)} registros")
     else:
         st.warning("- Nenhum registro encontrado com os filtros aplicados")
@@ -468,7 +505,7 @@ def main():
                         showlegend=False,
                         title_font_size=14
                     )
-                    st.plotly_chart(fig_loja, use_container_width=True)
+                    st.plotly_chart(fig_loja, width='stretch')
             else:
                 with cols[j]:
                     st.info(f"Loja {loja}: Sem dados")
@@ -507,7 +544,7 @@ def main():
                         showlegend=False,
                         title_font_size=14
                     )
-                    st.plotly_chart(fig_loja_entrega, use_container_width=True)
+                    st.plotly_chart(fig_loja_entrega, width='stretch')
             else:
                 with cols[j]:
                     st.info(f"Loja {loja}: Sem dados")
@@ -539,7 +576,7 @@ def main():
         yaxis_title="Custo Entregadores (R$)",
         height=400
     )
-    st.plotly_chart(fig_entregadores, use_container_width=True)
+    st.plotly_chart(fig_entregadores, width='stretch')
     
     st.subheader("🚚 Custos de Frota por Loja e Período")
     
@@ -562,7 +599,7 @@ def main():
         yaxis_title="Custo Frota (R$)",
         height=400
     )
-    st.plotly_chart(fig_frota, use_container_width=True)
+    st.plotly_chart(fig_frota, width='stretch')
 
 if __name__ == "__main__":
     main()
