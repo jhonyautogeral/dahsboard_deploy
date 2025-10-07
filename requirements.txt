@@ -1,14 +1,12 @@
-
-streamlit==1.38.0
-pandas==2.2.2
-mysqlclient==2.2.4
-sqlalchemy==2.0.34
+streamlit==1.40.2
+pandas==2.2.3
+mysqlclient==2.2.7
+sqlalchemy==2.0.36
 pymysql==1.1.1
-matplotlib==3.9.2
+matplotlib==3.9.3
 seaborn==0.13.2
 plotly==5.24.1
 msal==1.31.1
-streamlit-authenticator == 0.4.1
-requests == 2.32.3
-openpyxl == 3.1.5
-
+streamlit-authenticator==0.4.1
+requests==2.32.3
+openpyxl==3.1.5
