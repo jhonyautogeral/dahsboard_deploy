@@ -20,7 +20,8 @@ class AccessControl:
         "abastecimento_veic.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio", "Gerente de Vendas"],
         "entrega_logistica_40.py": ["Gestor", "Contas_pagar", "Compras", "Estagiário de TI", "Sócio", "Gerente de Vendas"],
         "centro_custo.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
-        "proporcao_compras_transferencias.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"]
+        "proporcao_compras_transferencias.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"],
+        "entrega40.py": ["Gestor", "Encarregado", "VENDAS", "Estagiário de TI", "Sócio", "Desenvolvedora de Software", "Gerente de Vendas"]
     }
     
     PAGES = [
@@ -30,6 +31,7 @@ class AccessControl:
         {"file": "custo_loja_sem_veiculo.py", "label": "Análise de Despesas por Loja (SEM VEICULO)", "permitir": PERMISSIONS.get("custo_loja_sem_veiculo.py")},
         #{"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
         {"file": "custo_entrega_entregadores.py", "label": "Custo Entregadores e Entrega", "permitir": PERMISSIONS.get("custo_entrega_entregadores.py")},
+        {"file": "entrega40.py", "label": "Analise Entrega 40", "permitir": PERMISSIONS.get("entrega40.py")},
         {"file": "custos.py", "label": "Custos", "permitir": PERMISSIONS.get("custos.py")},
         {"file": "entrega_logistica_40.py", "label": "Entrega 40 Logística", "permitir": PERMISSIONS.get("entrega_logistica_40.py")},
         {"file": "modo_venda_itens_curva.py", "label": "Vendas itens e curva", "permitir": PERMISSIONS.get("modo_venda_itens_curva.py")},
@@ -39,7 +41,7 @@ class AccessControl:
         {"file": "abastecimento_veic.py", "label": "Custo combustivel frota", "permitir": PERMISSIONS.get("abastecimento_veic.py")},
         {"file": "produto_cruzado_fraga.py", "label": "Produtos Cruzado Fraga", "permitir": PERMISSIONS.get("produto_cruzado_fraga.py")},
         {"file": "motorista_ocioso.py", "label": "Motoristas Ocioso", "permitir": PERMISSIONS.get("motorista_ocioso.py")},
-        {"file": "entrega_em_40.py", "label": "Endicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
+        # {"file": "entrega_em_40.py", "label": "Endicadores de Entregas", "permitir": PERMISSIONS.get("entrega_em_40.py")},
         #{"file": "centro_custo.py", "label": "Centro de custo", "permitir": PERMISSIONS.get("centro_custo.py")},
         # commit Removendo dashboard centro_custo.py por talvez nao ser mais necessario, pois sera centralizado em outro dashboard e agora as informacoes estao na tabela comp_rateio, sem a necessidade de varios joins e usar as varias apis
     ]
