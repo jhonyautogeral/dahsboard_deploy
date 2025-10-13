@@ -29,7 +29,7 @@ def criar_filtros_sidebar(engine):
     
     tipo_analise = st.sidebar.selectbox(
         "Tipo de Análise",
-        ["Análise de Entregas", "Análise de Separação", "Mediana por Mês/Ano"]
+        ["Análise de Entregas", "Análise de Separação", "Análise de Separação Mediana por Mês/Ano"]
     )
     
     col1, col2 = st.sidebar.columns(2)
@@ -60,7 +60,7 @@ def criar_filtros_sidebar(engine):
         - Análise por dia da semana e hora
         - Remove outliers automaticamente
         
-        #### - Mediana por Mês/Ano
+        #### - Análise de Separação Mediana por Mês/Ano
         - Visão temporal da mediana de separação
         - Comparação entre meses
         
@@ -102,20 +102,35 @@ def criar_grafico_barras(df, x_col, y_cols, labels, colors, titulo, y_label):
     
     st.plotly_chart(fig, use_container_width=True)
 
+def converter_minutos_para_texto(minutos):
+    """Converte minutos para formato legível: '45' se < 60, '1h 30' se >= 60"""
+    if minutos < 60:
+        return str(int(minutos))
+    else:
+        horas = int(minutos // 60)
+        mins = int(minutos % 60)
+        return f"{horas}h {mins:02d}" if mins > 0 else f"{horas}h"
+
 def criar_mapa_calor(df, col_y, col_x, col_valor, titulo):
     pivot = df.pivot(index=col_y, columns=col_x, values=col_valor)
     pivot = pivot.fillna(0)
-    
+
+    # Cria matriz de texto formatado
+    texto_formatado = pivot.applymap(converter_minutos_para_texto)
+
     fig = px.imshow(
         pivot,
         labels=dict(x=col_x, y=col_y, color="Minutos"),
         x=pivot.columns,
         y=pivot.index,
         color_continuous_scale='Blues',
-        text_auto=True,
+        text_auto=False,
         aspect='auto'
     )
-    
+
+    # Atualiza os textos das células com o formato customizado
+    fig.update_traces(text=texto_formatado.values, texttemplate="%{text}")
+
     fig.update_layout(title=titulo, height=600)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -126,23 +141,29 @@ def criar_mapa_calor_dia_hora(df, col_valor, titulo):
     }
     df['DIA_PT'] = df['DIA_SEMANA'].map(dias_map)
     df = df[df['DIA_PT'].notna()]
-    
+
     pivot = df.pivot(index='HORA', columns='DIA_PT', values=col_valor)
     pivot = pivot.fillna(0)
-    
+
     ordem_dias = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
     pivot = pivot.reindex(columns=ordem_dias, fill_value=0)
-    
+
+    # Cria matriz de texto formatado
+    texto_formatado = pivot.applymap(converter_minutos_para_texto)
+
     fig = px.imshow(
         pivot,
         labels=dict(x="Dia da Semana", y="Hora", color="Minutos"),
         x=pivot.columns,
         y=pivot.index,
         color_continuous_scale='Blues',
-        text_auto=True,
+        text_auto=False,
         aspect='auto'
     )
-    
+
+    # Atualiza os textos das células com o formato customizado
+    fig.update_traces(text=texto_formatado.values, texttemplate="%{text}")
+
     fig.update_layout(title=titulo, height=600)
     st.plotly_chart(fig, use_container_width=True)
 
@@ -368,8 +389,8 @@ def main():
             df = executar_query(engine, query)
             
             if not df.empty:
-                criar_mapa_calor(df, 'LOJA', 'MES_ANO', 'MEDIANA_MINUTOS', '- Mapa de Calor - Mediana por Mês/Ano')
-                exibir_tabela(df, f"- Mediana por Mês/Ano - Loja {loja}")
+                criar_mapa_calor(df, 'LOJA', 'MES_ANO', 'MEDIANA_MINUTOS', '- Mapa de Calor - Análise de Separação Mediana por Mês/Ano')
+                exibir_tabela(df, f"- Análise de Separação Mediana por Mês/Ano - Loja {loja}")
             else:
                 st.warning("- Nenhum dado encontrado")
 
