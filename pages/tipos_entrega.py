@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 from sqlalchemy import create_engine
 from datetime import datetime, date
 
@@ -114,19 +113,12 @@ def obter_venda_casada(loja_filtro, data_inicio, data_fim):
     
     return pd.read_sql_query(query, engine)
 
-# Função para obter dados para gráfico comparativo (ATUALIZADA COM NOVA QUERY ENTREGA 40)
+# Função para obter dados para gráfico comparativo (ATUALIZADA - TOTAL = CLIENTES + ROTA + VENDA_CASADA)
 def obter_dados_comparativo(loja_filtro, data_inicio, data_fim):
     engine = criar_conexao()
-    
-    # Query para total de entregas
-    query_total = f"""
-    SELECT E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m') as MES_ANO, COUNT(EI.ITEM) AS TOTAL
-    FROM expedicao_itens EI
-    LEFT JOIN expedicao E ON EI.EXPEDICAO_CODIGO = E.expedicao AND EI.EXPEDICAO_LOJA = E.LOJA
-    WHERE E.CADASTRO BETWEEN '{data_inicio}' AND '{data_fim}'
-    {f"AND E.LOJA IN ({','.join(map(str, loja_filtro))})" if loja_filtro else ""}
-    GROUP BY E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m')
-    """
+
+    # IMPORTANTE: Não mais calculamos TOTAL diretamente.
+    # TOTAL será calculado como: CLIENTES + ROTA + VENDA_CASADA
     
     # NOVA Query para entregas 40 (substituindo a anterior)
     query_40 = f"""
@@ -148,12 +140,13 @@ def obter_dados_comparativo(loja_filtro, data_inicio, data_fim):
     GROUP BY a.LOJA, DATE_FORMAT(r.CADASTRO, '%%Y-%%m')
     """
     
-    # Query para clientes
+    # Query para clientes (corrigida - conta registros distintos)
     query_clientes = f"""
-    SELECT E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m') as MES_ANO, COUNT(EI.ITEM) AS CLIENTES
+    SELECT E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m') as MES_ANO,
+           COUNT(DISTINCT CONCAT(EI.EXPEDICAO_CODIGO, '-', EI.EXPEDICAO_LOJA, '-', EI.ITEM)) AS CLIENTES
     FROM expedicao_itens EI
     LEFT JOIN expedicao E ON EI.EXPEDICAO_CODIGO = E.expedicao AND EI.EXPEDICAO_LOJA = E.LOJA
-    LEFT JOIN cadastros_enderecos CE ON EI.ENDERECO_ENTREGA_CODIGO = CE.ENDERECO_CODIGO 
+    LEFT JOIN cadastros_enderecos CE ON EI.ENDERECO_ENTREGA_CODIGO = CE.ENDERECO_CODIGO
            AND EI.ENDERECO_ENTREGA_LOJA = CE.ENDERECO_LOJA
     LEFT JOIN cadastros C ON CE.CADASTRO_CODIGO = C.CODIGO AND CE.CADASTRO_LOJA = C.LOJA
     WHERE E.CADASTRO BETWEEN '{data_inicio}' AND '{data_fim}'
@@ -163,12 +156,13 @@ def obter_dados_comparativo(loja_filtro, data_inicio, data_fim):
     GROUP BY E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m')
     """
     
-    # Query para rota
+    # Query para rota (corrigida - conta registros distintos)
     query_rota = f"""
-    SELECT E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m') as MES_ANO, COUNT(EI.ITEM) AS ROTA
+    SELECT E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m') as MES_ANO,
+           COUNT(DISTINCT CONCAT(EI.EXPEDICAO_CODIGO, '-', EI.EXPEDICAO_LOJA, '-', EI.ITEM)) AS ROTA
     FROM expedicao_itens EI
     LEFT JOIN expedicao E ON EI.EXPEDICAO_CODIGO = E.expedicao AND EI.EXPEDICAO_LOJA = E.LOJA
-    LEFT JOIN cadastros_enderecos CE ON EI.ENDERECO_ENTREGA_CODIGO = CE.ENDERECO_CODIGO 
+    LEFT JOIN cadastros_enderecos CE ON EI.ENDERECO_ENTREGA_CODIGO = CE.ENDERECO_CODIGO
            AND EI.ENDERECO_ENTREGA_LOJA = CE.ENDERECO_LOJA
     LEFT JOIN cadastros C ON CE.CADASTRO_CODIGO = C.CODIGO AND CE.CADASTRO_LOJA = C.LOJA
     WHERE E.CADASTRO BETWEEN '{data_inicio}' AND '{data_fim}'
@@ -177,14 +171,33 @@ def obter_dados_comparativo(loja_filtro, data_inicio, data_fim):
     GROUP BY E.LOJA, DATE_FORMAT(E.CADASTRO, '%%Y-%%m')
     """
     
-    df_total = pd.read_sql_query(query_total, engine)
     df_40 = pd.read_sql_query(query_40, engine)
     df_clientes = pd.read_sql_query(query_clientes, engine)
     df_rota = pd.read_sql_query(query_rota, engine)
-    
+
     # Obter dados de venda casada
     df_venda_casada = obter_venda_casada(loja_filtro, data_inicio, data_fim)
-    
+
+    # Calcular TOTAL como CLIENTES + ROTA + VENDA_CASADA
+    # Primeiro, criar um DataFrame com todas as combinações de LOJA e MES_ANO
+    all_combinations = set()
+    for df in [df_clientes, df_rota, df_venda_casada]:
+        if not df.empty:
+            for _, row in df.iterrows():
+                all_combinations.add((row['LOJA'], row['MES_ANO']))
+
+    # Criar DataFrame de totais
+    total_data = []
+    for loja, mes_ano in all_combinations:
+        clientes_val = df_clientes[(df_clientes['LOJA'] == loja) & (df_clientes['MES_ANO'] == mes_ano)]['CLIENTES'].sum()
+        rota_val = df_rota[(df_rota['LOJA'] == loja) & (df_rota['MES_ANO'] == mes_ano)]['ROTA'].sum()
+        venda_casada_val = df_venda_casada[(df_venda_casada['LOJA'] == loja) & (df_venda_casada['MES_ANO'] == mes_ano)]['VENDA_CASADA'].sum()
+
+        total = clientes_val + rota_val + venda_casada_val
+        total_data.append({'LOJA': loja, 'MES_ANO': mes_ano, 'TOTAL': total})
+
+    df_total = pd.DataFrame(total_data)
+
     return df_total, df_40, df_clientes, df_rota, df_venda_casada
 
 # Interface do usuário
