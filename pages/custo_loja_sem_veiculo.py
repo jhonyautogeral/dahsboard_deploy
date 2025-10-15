@@ -370,13 +370,13 @@ def main():
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.info(f"🏆 **Loja top**: {loja_maior['LOJA']}\nR$ {loja_maior['TOTAL']:,.2f}")
+            st.info(f"🏆 **Loja gasto/despesa**: {loja_maior['LOJA']}\nR$ {loja_maior['TOTAL']:,.2f}")
 
         with col2:
-            st.info(f"📅 **Dia top**: {dia_maior['DATA']}\nR$ {dia_maior['TOTAL']:,.2f}")
+            st.info(f"📅 **Dia gasto/despesa**: {dia_maior['DATA']}\nR$ {dia_maior['TOTAL']:,.2f}")
         
         with col3:
-            st.info(f"💰 **Centro de Custo top**: {desc_maior['DESCRICAO'][:20]}...\nR$ {desc_maior['TOTAL']:,.2f}")
+            st.info(f"💰 **Centro de Custo gasto/despesa**: {desc_maior['DESCRICAO'][:20]}...\nR$ {desc_maior['TOTAL']:,.2f}")
         
         # Download
         st.header("💾 Download dos Dados")

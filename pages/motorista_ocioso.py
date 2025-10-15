@@ -1,4 +1,9 @@
 import streamlit as st
+
+if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
+    st.warning("Você não está logado. Redirecionando para a página de login...")
+    st.switch_page("app.py")
+    st.stop()
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
@@ -6,7 +11,7 @@ from sqlalchemy import create_engine
 
 class CobliAPI:
     def __init__(self):
-        self.api_key = "QCu90NE.ab270a00-a3d6-406c-92fc-d24c10605a50"
+        self.api_key = st.secrets["cobli"]["key"]
         self.headers = {
             "accept": "application/json",
             "content-type": "application/json",
@@ -22,9 +27,14 @@ class CobliAPI:
             "end_date": end_date,
             "timezone": "America/Sao_Paulo"
         }
-        
-        response = requests.post(url, json=payload, headers=self.headers)
-        return response.json() if response.status_code == 200 else []
+
+        try:
+            response = requests.post(url, json=payload, headers=self.headers, timeout=30)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            st.error(f"Erro ao buscar dados da API Cobli: {e}")
+            return []
     
     def get_vehicles_list(self):
         url = "https://api.cobli.co/public/v1/vehicles?limit=2000&page=1"
@@ -32,16 +42,22 @@ class CobliAPI:
             "accept": "application/json",
             "cobli-api-key": self.api_key
         }
-        
-        response = requests.get(url, headers=headers_get)
-        return response.json().get('data', []) if response.status_code == 200 else []
+
+        try:
+            response = requests.get(url, headers=headers_get, timeout=30)
+            response.raise_for_status()
+            return response.json().get('data', [])
+        except requests.exceptions.RequestException as e:
+            st.error(f"Erro ao buscar lista de veículos: {e}")
+            return []
 
 def minutes_to_hms(minutes):
     if not minutes:
         return "00:00:00"
-    hours = int(minutes // 60)
-    mins = int(minutes % 60)
-    secs = int((minutes % 1) * 60)
+    total_seconds = int(minutes * 60)
+    hours = total_seconds // 3600
+    mins = (total_seconds % 3600) // 60
+    secs = total_seconds % 60
     return f"{hours:02d}:{mins:02d}:{secs:02d}"
 
 def hms_to_minutes(hms_str):
@@ -65,15 +81,15 @@ def get_entregadores_data():
     try:
         engine = criar_conexao()
         query = """
-        SELECT 
+        SELECT
             E.LOJA_PRINCIPAL,
             E.DESCRICAO,
             E.ENTREGADOR_TIPO,
             E.COBL_CODE,
             E.COBL_ID
         FROM entregador E
-        WHERE E.ATIVO = 1 
-        AND E.COBL_ID IS NOT NULL 
+        WHERE E.ATIVO = 1
+        AND E.COBL_ID IS NOT NULL
         AND E.COBL_ID != ''
         """
         return pd.read_sql(query, engine)
@@ -82,10 +98,15 @@ def get_entregadores_data():
         return pd.DataFrame()
 
 def main():
-    st.title("📊 Dashboard Cobli - Análise de Frota")
-    st.markdown("---")
+    # Integração com sistema de navegação e autenticação
+    # make_sidebar()
+
     if st.sidebar.button("Voltar"):
         st.switch_page("app.py")
+
+    st.title("📊 Dashboard Cobli - Análise de Frota")
+    st.markdown("---")
+
     # Sidebar para filtros
     st.sidebar.header("⚙️ Configurações")
     
