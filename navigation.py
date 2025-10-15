@@ -27,6 +27,7 @@ class AccessControl:
     PAGES = [
         {"file": "page1.py", "label": "DASHBOARD E MÉTRICAS DA AUTO GERAL", "permitir": None},
         {"file": "veiculos_cobli.py", "label": "Monitora Veículos Cobli", "permitir": PERMISSIONS.get("veiculos_cobli.py")},
+        {"file": "abastecimento.py", "label": "Monitora Abastecimentos", "permitir": PERMISSIONS.get("abastecimento.py")},
         {"file": "proporcao_compras_transferencias.py", "label": "Proporcao Compras Transferencias", "permitir": PERMISSIONS.get("proporcao_compras_transferencias.py")},
         {"file": "custo_loja_sem_veiculo.py", "label": "Análise de Despesas por Loja (SEM VEICULO)", "permitir": PERMISSIONS.get("custo_loja_sem_veiculo.py")},
         #{"file": "custo_entrega.py", "label": "Custo de entrega", "permitir": PERMISSIONS.get("custo_entrega.py")},
